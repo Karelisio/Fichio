@@ -17,7 +17,8 @@ import androidx.room.RoomDatabase
         TransferLogEntity::class,
         RecentEntity::class,
     ],
-    version = 1,
+    // v1 = the 0.1.x app (different schema, same file name): dropped on upgrade.
+    version = 2,
     exportSchema = true,
 )
 abstract class FichioDatabase : RoomDatabase() {
@@ -35,6 +36,8 @@ abstract class FichioDatabase : RoomDatabase() {
 
         fun build(context: Context): FichioDatabase =
             Room.databaseBuilder(context.applicationContext, FichioDatabase::class.java, NAME)
+                // 0.1.x shipped an unrelated schema under the same name/version 1: start fresh.
+                .fallbackToDestructiveMigrationFrom(true, 1)
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                 .build()
 

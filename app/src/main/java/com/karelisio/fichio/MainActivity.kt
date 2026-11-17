@@ -48,6 +48,13 @@ open class MainActivity : ComponentActivity() {
     private val pendingRoutes = MutableSharedFlow<Route>(extraBufferCapacity = 4)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // A fatal crash happened last time: show the plain-View report first.
+        if (this !is PickerActivity && com.karelisio.fichio.core.util.CrashLog.read(this)?.startsWith("Plantage") == true) {
+            super.onCreate(savedInstanceState)
+            startActivity(Intent(this, CrashActivity::class.java))
+            finish()
+            return
+        }
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

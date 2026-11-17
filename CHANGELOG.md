@@ -3,6 +3,16 @@
 Toutes les évolutions notables de Fichio sont listées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [0.2.1] - 2026-11-18
+
+### Corrigé
+- Fermeture immédiate au lancement après une mise à jour depuis la 0.1.x : l'ancienne base de données (schéma différent, même version) faisait échouer Room. Elle est désormais remplacée proprement.
+- Une opération annulée alors qu'elle attendait dans la file pouvait rester bloquée indéfiniment.
+- Les erreurs des tâches de fond ne peuvent plus fermer l'appli.
+
+### Ajouté
+- Rapport de plantage local : après une fermeture inattendue, Fichio affiche le rapport au lancement suivant (copier / partager). Rien n'est envoyé automatiquement.
+
 ## [0.2.0] - 2026-11-18
 
 Refonte complète de l'appli.
