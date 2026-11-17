@@ -197,7 +197,7 @@ fun HomeScreen(nav: NavHostController) {
             }
         }
         Box(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 12.dp)) {
-            MiniPlayerBar(onOpen = { nav.navigate(Route.Preview(it)) })
+            MiniPlayerBar(onOpen = { nav.navigate(if (it.startsWith("content://")) Route.UriPreview(it) else Route.Preview(it)) })
         }
     }
 

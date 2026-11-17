@@ -281,7 +281,7 @@ fun BrowserScreen(nav: NavHostController, initialPath: String?, newTab: Boolean)
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    MiniPlayerBar(onOpen = { nav.navigate(Route.Preview(it)) })
+                    MiniPlayerBar(onOpen = { nav.navigate(if (it.startsWith("content://")) Route.UriPreview(it) else Route.Preview(it)) })
                     OperationsIndicator(onClick = { dialog = BrowserDialog.Operations })
                     AnimatedVisibility(
                         visible = clip != null && !pane.inSelection && picker == null,
