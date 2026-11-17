@@ -19,7 +19,7 @@ class AppContainer(context: Context) {
 
     val settingsRepository = SettingsRepository(context.applicationContext)
     val fileSystem = FileSystem(context.applicationContext)
-    val trashManager = TrashManager(context.applicationContext)
+    val trashManager = TrashManager(context.applicationContext, database)
 }
 
 class FichioApp : Application() {

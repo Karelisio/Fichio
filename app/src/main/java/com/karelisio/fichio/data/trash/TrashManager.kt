@@ -1,7 +1,7 @@
 package com.karelisio.fichio.data.trash
 
 import android.content.Context
-import com.karelisio.fichio.FichioApp
+import com.karelisio.fichio.data.db.FichioDatabase
 import com.karelisio.fichio.data.db.TrashItemEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,11 +11,13 @@ import java.io.File
  * Moves deleted files into a hidden app-private trash directory and records
  * their original location in Room so they can be restored. Also backs "delete
  * to trash" so the operation can be undone.
+ *
+ * The DAO is injected directly (rather than reaching back into the app
+ * container) to avoid a circular initialization during app startup.
  */
-class TrashManager(context: Context) {
+class TrashManager(context: Context, database: FichioDatabase) {
 
-    private val container = (context.applicationContext as FichioApp).container
-    private val dao = container.database.trashDao()
+    private val dao = database.trashDao()
     private val trashDir = File(context.filesDir, TRASH_DIR_NAME)
 
     /** Moves items into the trash and returns the created metadata rows. */
