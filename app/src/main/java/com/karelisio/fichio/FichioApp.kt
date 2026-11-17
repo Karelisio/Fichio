@@ -21,6 +21,7 @@ import com.karelisio.fichio.ui.components.FichioImageLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Manual dependency container. Everything is lazy so that nothing touches another
@@ -56,6 +57,15 @@ class FichioApp : Application(), SingletonImageLoader.Factory {
         runCatching { container.shizuku.init() }
         runCatching { container.indexer.start() }
         runCatching { com.karelisio.fichio.trash.TrashPurgeWorker.schedule(this) }
+        // Favourites → dynamic shortcuts + widget; widget free space after each operation.
+        runCatching { com.karelisio.fichio.shortcuts.Shortcuts.observeFavorites(this, container.appScope) }
+        container.appScope.launch {
+            container.operations.events.collect { e ->
+                if (e is com.karelisio.fichio.ops.OperationEvent.Finished) {
+                    runCatching { com.karelisio.fichio.widget.FichioWidget.updateAll(this@FichioApp) }
+                }
+            }
+        }
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader =
