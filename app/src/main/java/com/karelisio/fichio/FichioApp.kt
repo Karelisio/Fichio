@@ -18,6 +18,8 @@ import com.karelisio.fichio.search.SearchIndexer
 import com.karelisio.fichio.shizuku.ShizukuManager
 import com.karelisio.fichio.trash.TrashRepository
 import com.karelisio.fichio.ui.components.FichioImageLoader
+import com.karelisio.fichio.core.util.CrashLog
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,7 +32,12 @@ import kotlinx.coroutines.launch
 class AppContainer(context: Context) {
     val appContext: Context = context.applicationContext
     /** Application-wide scope for work that must outlive screens. */
-    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val appScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e ->
+            // A failing background task must never take the whole app down.
+            runCatching { CrashLog.write(appContext, Thread.currentThread().name, e, fatal = false) }
+        },
+    )
 
     val database: FichioDatabase by lazy { FichioDatabase.build(appContext) }
     val settings: SettingsRepository by lazy { SettingsRepository(appContext) }
@@ -51,6 +58,11 @@ class FichioApp : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t, e ->
+            runCatching { CrashLog.write(this, t.name, e, fatal = true) }
+            previous?.uncaughtException(t, e)
+        }
         instance = this
         container = AppContainer(this)
         container.volumes.refresh()

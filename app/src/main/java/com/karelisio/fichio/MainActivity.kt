@@ -14,6 +14,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -97,6 +100,7 @@ open class MainActivity : ComponentActivity() {
                         OperationsHost()
                         FlyOverlay()
                         if (picker == null) UpdateHost()
+                        if (picker == null) CrashReportDialog()
                     }
                 }
             }
@@ -160,4 +164,56 @@ private fun AnimatorSet.doOnEndCompat(block: () -> Unit) {
     addListener(object : android.animation.AnimatorListenerAdapter() {
         override fun onAnimationEnd(animation: android.animation.Animator) = block()
     })
+}
+
+/** Shows the last crash (stored locally by [com.karelisio.fichio.core.util.CrashLog]) once. */
+@androidx.compose.runtime.Composable
+private fun CrashReportDialog() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var report by remember { mutableStateOf(com.karelisio.fichio.core.util.CrashLog.read(context)) }
+    val text = report ?: return
+    fun dismiss() { com.karelisio.fichio.core.util.CrashLog.clear(context); report = null }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = ::dismiss,
+        title = { androidx.compose.material3.Text("Fichio a rencontré une erreur") },
+        text = {
+            androidx.compose.foundation.layout.Column {
+                androidx.compose.material3.Text(
+                    "Le rapport reste sur l'appareil. Copie-le ou partage-le pour aider à corriger le problème.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                androidx.compose.foundation.layout.Spacer(Modifier.fillMaxSize(0f))
+                androidx.compose.material3.Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.padding(top = androidx.compose.ui.unit.Dp(12f)),
+                ) {
+                    androidx.compose.material3.Text(
+                        text.take(6000),
+                        style = com.karelisio.fichio.ui.theme.MonoStyle.copy(fontSize = androidx.compose.ui.unit.TextUnit(10f, androidx.compose.ui.unit.TextUnitType.Sp)),
+                        modifier = Modifier
+                            .heightIn(max = androidx.compose.ui.unit.Dp(260f))
+                            .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                            .padding(androidx.compose.ui.unit.Dp(10f)),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = {
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+                context.startActivity(Intent.createChooser(send, "Partager le rapport").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                dismiss()
+            }) { androidx.compose.material3.Text("Partager") }
+        },
+        dismissButton = {
+            androidx.compose.foundation.layout.Row {
+                androidx.compose.material3.TextButton(onClick = {
+                    val cm = context.getSystemService(android.content.ClipboardManager::class.java)
+                    cm?.setPrimaryClip(android.content.ClipData.newPlainText("Rapport Fichio", text))
+                }) { androidx.compose.material3.Text("Copier") }
+                androidx.compose.material3.TextButton(onClick = ::dismiss) { androidx.compose.material3.Text("Fermer") }
+            }
+        },
+    )
 }

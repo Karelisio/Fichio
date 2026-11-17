@@ -367,7 +367,10 @@ class OperationManager(
         _jobs.update { it + Job(id = id, kind = kind, title = title, sources = sources, destination = destination) }
         FileOperationService.start(context)
         val listener = JobListener(id, rec)
-        val c = scope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
+        // ATOMIC: the body always starts, so a job cancelled while still queued runs its
+        // finally block and is marked CANCELLED (a LAZY/DEFAULT job cancelled before dispatch
+        // would never complete and stay stuck in the queue).
+        val c = scope.launch(Dispatchers.IO, start = CoroutineStart.ATOMIC) {
             var outcome: Outcome? = null
             var error: Throwable? = null
             try {
@@ -383,7 +386,6 @@ class OperationManager(
             }
         }
         rec.coroutine = c
-        c.start()
         return id
     }
 
