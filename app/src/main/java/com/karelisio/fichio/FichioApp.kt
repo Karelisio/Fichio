@@ -55,6 +55,7 @@ class FichioApp : Application(), SingletonImageLoader.Factory {
         container.volumes.refresh()
         runCatching { container.shizuku.init() }
         runCatching { container.indexer.start() }
+        runCatching { com.karelisio.fichio.trash.TrashPurgeWorker.schedule(this) }
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader =
