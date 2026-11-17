@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget picker preview (Android 12+ previewLayout). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:clipToOutline="true"
+    android:orientation="vertical" android:padding="12dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageView android:layout_width="64dp" android:layout_height="64dp"
+            android:src="@drawable/widget_preview_ring" android:contentDescription="@null" />
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="12dp" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/widget_preview_free" android:textSize="28sp" android:textStyle="bold"
+                android:textColor="@color/widget_on_surface" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/widget_preview_total" android:textSize="12sp"
+                android:textColor="@color/widget_on_surface_variant" />
+        </LinearLayout>
+    </LinearLayout>
+    <TextView android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="10dp"
+        android:background="@drawable/widget_preview_chip" android:gravity="center_vertical"
+        android:paddingStart="12dp" android:paddingEnd="12dp"
+        android:drawableStart="@drawable/ic_widget_folder" android:drawablePadding="8dp"
+        android:drawableTint="@color/widget_on_surface"
+        android:text="@string/shortcut_downloads" android:textSize="13sp" android:textColor="@color/widget_on_surface" />
+    <TextView android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="6dp"
+        android:background="@drawable/widget_preview_chip" android:gravity="center_vertical"
+        android:paddingStart="12dp" android:paddingEnd="12dp"
+        android:drawableStart="@drawable/ic_widget_folder" android:drawablePadding="8dp"
+        android:drawableTint="@color/widget_on_surface"
+        android:text="@string/widget_preview_folder" android:textSize="13sp" android:textColor="@color/widget_on_surface" />
+</LinearLayout>

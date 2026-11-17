@@ -1,6 +1,9 @@
 package com.karelisio.fichio.widget
 
-import android.appwidget.AppWidgetProvider
+import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetReceiver
 
-/** Glance widget receiver. CONTRACT STUB. */
-class FichioWidgetReceiver : AppWidgetProvider()
+/** Home-screen widget receiver; refreshed by updatePeriodMillis (30 min) and [FichioWidget.updateAll]. */
+class FichioWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = FichioWidget()
+}
