@@ -25,8 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
-import com.karelisio.fichio.data.prefs.FichioSettings
 import com.karelisio.fichio.ops.OperationsHost
+import com.karelisio.fichio.ui.components.FlyOverlay
 import com.karelisio.fichio.shortcuts.Shortcuts
 import com.karelisio.fichio.ui.navigation.FichioNavHost
 import com.karelisio.fichio.ui.navigation.LocalPickerRequest
@@ -95,6 +95,7 @@ open class MainActivity : ComponentActivity() {
                     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
                         FichioNavHost(nav, startRoute)
                         OperationsHost()
+                        FlyOverlay()
                         if (picker == null) UpdateHost()
                     }
                 }
@@ -160,6 +161,3 @@ private fun AnimatorSet.doOnEndCompat(block: () -> Unit) {
         override fun onAnimationEnd(animation: android.animation.Animator) = block()
     })
 }
-
-@Suppress("unused")
-private val defaultSettings = FichioSettings()

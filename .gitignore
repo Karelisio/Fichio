@@ -25,3 +25,4 @@ secrets.properties
 
 # Misc
 *.log
+.claude/worktrees/
