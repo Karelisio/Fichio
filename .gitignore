@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+local.properties
+
+# Android
+*.apk
+*.aab
+*.apks
+*.keystore
+*.jks
+!debug.keystore
+/app/schemas/
+captures/
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Local secrets (never commit)
+keystore.properties
+secrets.properties
+*.pem
+*.key
+
+# Misc
+*.log

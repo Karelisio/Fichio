@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="internal_storage"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_storage"
+        android:shortcutShortLabel="@string/internal_storage"
+        android:shortcutLongLabel="@string/internal_storage">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.karelisio.fichio"
+            android:targetClass="com.karelisio.fichio.MainActivity"
+            android:data="fichio://storage/internal" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="downloads"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_downloads"
+        android:shortcutShortLabel="@string/cat_downloads"
+        android:shortcutLongLabel="@string/cat_downloads">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.karelisio.fichio"
+            android:targetClass="com.karelisio.fichio.MainActivity"
+            android:data="fichio://storage/downloads" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="trash"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_trash"
+        android:shortcutShortLabel="@string/trash"
+        android:shortcutLongLabel="@string/trash">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.karelisio.fichio"
+            android:targetClass="com.karelisio.fichio.MainActivity"
+            android:data="fichio://trash" />
+    </shortcut>
+</shortcuts>
