@@ -34,3 +34,7 @@
 
 # Coil
 -dontwarn coil.**
+
+# Shevery / Shizuku UserService is instantiated by class name in the shell process.
+-keep class com.karelisio.fichio.shizuku.** { *; }
+-keep class * implements android.os.IInterface { *; }

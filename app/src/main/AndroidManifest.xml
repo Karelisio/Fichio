@@ -6,62 +6,58 @@
     <uses-permission
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="29" />
 
     <!-- Notifications (operation progress) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Android 16 "Live updates" (promoted ongoing notifications), shown by Bulle on the island -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
 
-    <!-- APK install -->
+    <!-- APK install / app listing for APK extraction -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
 
-    <!-- Network (local transfer server) -->
+    <!-- Local network (transfer server, update download) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
-    <!-- Foreground service for long operations -->
+    <!-- Foreground services -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-
-    <!-- Background work (trash purge, index, transfer auto-stop) -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- Battery optimization exemption (MagicOS) -->
+    <!-- Battery optimisation exemption (long operations, trash purge on MagicOS) -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
-    <!-- Shizuku / Shevery -->
-    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+    <!-- Launcher shortcuts -->
+    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
 
-    <!-- Package visibility for Polaro integration -->
+    <uses-sdk tools:overrideLibrary="rikka.shizuku.api, rikka.shizuku.provider, rikka.shizuku.shared, rikka.shizuku.aidl" />
+
     <queries>
         <package android:name="com.karelisio.polaro" />
-        <package android:name="moe.shizuku.manager" />
+        <package android:name="moe.shizuku.privileged.api" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:mimeType="*/*" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.OPEN_DOCUMENT" />
             <data android:mimeType="*/*" />
         </intent>
     </queries>
 
     <application
         android:name=".FichioApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Fichio.Splash"
+        android:theme="@style/Theme.Fichio"
         android:enableOnBackInvokedCallback="true"
+        android:requestLegacyExternalStorage="true"
+        android:localeConfig="@xml/locales_config"
         tools:targetApi="36">
 
         <activity
@@ -69,20 +65,38 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:theme="@style/Theme.Fichio.Splash"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
-            <!-- Open a file -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
                 <data android:mimeType="*/*" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="resource/folder" />
+                <data android:mimeType="vnd.android.document/directory" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
 
-            <!-- Serve as a file picker for other apps -->
+        <!-- Separate task for picker mode so the caller gets its result and Fichio's own task is untouched -->
+        <activity
+            android:name=".PickerActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Fichio"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.GET_CONTENT" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -95,9 +109,13 @@
                 <category android:name="android.intent.category.OPENABLE" />
                 <data android:mimeType="*/*" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.PICK" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
         </activity>
 
-        <!-- FileProvider for installing APKs -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -108,7 +126,7 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Shizuku / Shevery -->
+        <!-- Shevery / Shizuku binder delivery -->
         <provider
             android:name="rikka.shizuku.ShizukuProvider"
             android:authorities="${applicationId}.shizuku"
@@ -117,19 +135,26 @@
             android:exported="true"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
-        <!-- Foreground operation service -->
         <service
-            android:name=".service.FileOperationService"
+            android:name=".ops.FileOperationService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <!-- Local transfer server foreground service -->
         <service
-            android:name=".transfer.TransferServerService"
+            android:name=".transfer.TransferService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <!-- Glance widget -->
+        <service
+            android:name=".preview.PlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".widget.FichioWidgetReceiver"
             android:exported="true"
@@ -142,18 +167,15 @@
                 android:resource="@xml/fichio_widget_info" />
         </receiver>
 
-        <!-- App shortcuts -->
-        <meta-data
-            android:name="android.app.shortcuts"
-            android:resource="@xml/shortcuts" />
-
-        <!-- Boot receiver to reschedule trash purge and index work -->
         <receiver
-            android:name=".worker.BootReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
+            android:name=".apk.InstallReceiver"
+            android:exported="false" />
+
+        <!-- WorkManager initialised on demand (Configuration.Provider not needed) -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge" />
     </application>
 </manifest>

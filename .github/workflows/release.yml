@@ -1,16 +1,29 @@
 name: Build & Release
 
+# VERSION (repo root) is the single source of truth:
+#  - tag vX.Y.Z already exists  -> verification build only (tests + debug APK artifact)
+#  - tag missing                -> signed release APK, tag + GitHub Release with the CHANGELOG section
+
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: write
 
+# One run per ref at a time: avoids two pushes racing to create the same release.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,73 +46,152 @@ jobs:
           echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}"
           echo "sdkmanager=${SDKMANAGER}"
           yes | "${SDKMANAGER}" --licenses > /dev/null 2>&1 || true
-          "${SDKMANAGER}" --install "platforms;android-36" "build-tools;35.0.0"
+          "${SDKMANAGER}" --install "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Read VERSION (single source of truth)
         id: version
         run: |
           VERSION_NAME="$(tr -d '[:space:]' < VERSION)"
+          if ! echo "$VERSION_NAME" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error file=VERSION::VERSION must be X.Y.Z (got '${VERSION_NAME}')"
+            exit 1
+          fi
           echo "version_name=${VERSION_NAME}" >> "$GITHUB_OUTPUT"
           echo "VERSION=${VERSION_NAME}"
 
-      - name: Check whether tag already exists
-        id: tag
+      - name: Decide build type
+        id: mode
         run: |
-          if git rev-parse "v${{ steps.version.outputs.version_name }}" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Tag v${{ steps.version.outputs.version_name }} already exists -> verification build only."
+          TAG="v${{ steps.version.outputs.version_name }}"
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null || git ls-remote --exit-code --tags origin "${TAG}" >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "Tag ${TAG} already exists -> verification build only."
+          elif [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "Not on main -> verification build only."
           else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Tag v${{ steps.version.outputs.version_name }} does not exist -> build + release."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "Tag ${TAG} does not exist -> signed build + release."
           fi
-
-      # Always run: this is the "verification build" when the tag already exists.
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
 
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
-      # Release path (only when the tag does not exist yet).
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: app/build/reports/tests/
+          retention-days: 7
+
+      # ---------- Verification path ----------
+      - name: Build debug APK
+        if: steps.mode.outputs.release == 'false'
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload debug APK
+        if: steps.mode.outputs.release == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fichio-v${{ steps.version.outputs.version_name }}-debug-${{ github.run_number }}
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+      # ---------- Release path ----------
+      - name: Check signing secrets
+        if: steps.mode.outputs.release == 'true'
+        env:
+          FICHIO_KEYSTORE_BASE64: ${{ secrets.FICHIO_KEYSTORE_BASE64 }}
+          FICHIO_KEYSTORE_PASSWORD: ${{ secrets.FICHIO_KEYSTORE_PASSWORD }}
+          FICHIO_KEY_ALIAS: ${{ secrets.FICHIO_KEY_ALIAS }}
+          FICHIO_KEY_PASSWORD: ${{ secrets.FICHIO_KEY_PASSWORD }}
+        run: |
+          missing=""
+          for name in FICHIO_KEYSTORE_BASE64 FICHIO_KEYSTORE_PASSWORD FICHIO_KEY_ALIAS FICHIO_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing signing secrets:${missing}. Add them in Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
       - name: Decode keystore
-        if: steps.tag.outputs.exists == 'false'
+        if: steps.mode.outputs.release == 'true'
         env:
           FICHIO_KEYSTORE_BASE64: ${{ secrets.FICHIO_KEYSTORE_BASE64 }}
         run: |
-          echo "$FICHIO_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/fichio.keystore"
-          echo "Keystore written to $RUNNER_TEMP/fichio.keystore"
+          printf '%s' "$FICHIO_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/fichio.keystore"
+          if [ ! -s "$RUNNER_TEMP/fichio.keystore" ]; then
+            echo "::error::FICHIO_KEYSTORE_BASE64 could not be decoded"
+            exit 1
+          fi
+          echo "FICHIO_KEYSTORE_PATH=$RUNNER_TEMP/fichio.keystore" >> "$GITHUB_ENV"
 
       - name: Build signed release APK
-        if: steps.tag.outputs.exists == 'false'
+        if: steps.mode.outputs.release == 'true'
         env:
-          FICHIO_KEYSTORE_PATH: ${{ runner.temp }}/fichio.keystore
           FICHIO_KEYSTORE_PASSWORD: ${{ secrets.FICHIO_KEYSTORE_PASSWORD }}
           FICHIO_KEY_ALIAS: ${{ secrets.FICHIO_KEY_ALIAS }}
           FICHIO_KEY_PASSWORD: ${{ secrets.FICHIO_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --stacktrace
 
+      - name: Verify signature and rename APK
+        if: steps.mode.outputs.release == 'true'
+        id: apk
+        run: |
+          APK="$(ls app/build/outputs/apk/release/*.apk | grep -v unsigned | head -n1)"
+          if [ -z "$APK" ]; then
+            echo "::error::No signed release APK produced"
+            ls -la app/build/outputs/apk/release/ || true
+            exit 1
+          fi
+          APKSIGNER="$(find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/build-tools" -name apksigner -type f | sort | tail -n1)"
+          if ! "$APKSIGNER" verify --print-certs "$APK" > "$RUNNER_TEMP/certs.txt"; then
+            echo "::error::APK signature invalid"; exit 1
+          fi
+          # Refuse to publish an APK signed with the debug key (signing config not picked up).
+          if grep -q "CN=Android Debug" "$RUNNER_TEMP/certs.txt"; then
+            echo "::error::Release APK is signed with the debug key"; exit 1
+          fi
+          grep "Signer #1 certificate DN" "$RUNNER_TEMP/certs.txt" || true
+          OUT="Fichio-v${{ steps.version.outputs.version_name }}.apk"
+          mkdir -p dist
+          cp "$APK" "dist/$OUT"
+          echo "path=dist/$OUT" >> "$GITHUB_OUTPUT"
+          ls -la dist
+
       - name: Extract changelog section
-        if: steps.tag.outputs.exists == 'false'
+        if: steps.mode.outputs.release == 'true'
         run: |
           python3 - "${{ steps.version.outputs.version_name }}" <<'PY'
           import re, sys
           v = sys.argv[1]
           text = open("CHANGELOG.md", encoding="utf-8").read()
-          m = re.search(rf"## \[{re.escape(v)}\][^\n]*\n(.*?)(?=\n## |\Z)", text, re.S)
-          body = m.group(1).strip() if m else "No changelog entry for this version."
-          open("changelog-body.md", "w", encoding="utf-8").write(body)
+          m = re.search(rf"^## \[?v?{re.escape(v)}(?![0-9.])[^\n]*\n(.*?)(?=^## |\Z)", text, re.S | re.M)
+          body = m.group(1).strip() if m else "Pas de notes pour cette version."
+          open("changelog-body.md", "w", encoding="utf-8").write(body + "\n")
           PY
           echo "--- changelog body ---"
           cat changelog-body.md
 
-      - name: Publish GitHub Release (creates tag if missing)
-        if: steps.tag.outputs.exists == 'false'
+      - name: Publish GitHub Release (creates the tag)
+        if: steps.mode.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version_name }}
+          target_commitish: ${{ github.sha }}
           name: Fichio v${{ steps.version.outputs.version_name }}
           body_path: changelog-body.md
-          files: app/build/outputs/apk/release/*.apk
+          files: ${{ steps.apk.outputs.path }}
+          fail_on_unmatched_files: true
+          make_latest: true
+
+      - name: Clean up keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/fichio.keystore"

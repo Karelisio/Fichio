@@ -4,60 +4,32 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
-/**
- * Expressive typography: large "display" numerals for the space gauge and
- * generous title styles, per Material 3 Expressive guidance.
- */
-val ExpressiveDisplay = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.Bold,
-    fontSize = 48.sp,
-    lineHeight = 52.sp,
-    letterSpacing = (-1).sp
+private val base = Typography()
+
+/** Expressive typography: tighter, heavier display/headline styles, relaxed body text. */
+val FichioTypography = Typography(
+    displayLarge = base.displayLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.04).em),
+    displayMedium = base.displayMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.03).em),
+    displaySmall = base.displaySmall.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (-0.02).em),
+    headlineLarge = base.headlineLarge.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (-0.02).em),
+    headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (-0.015).em),
+    headlineSmall = base.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+    titleLarge = base.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+    titleMedium = base.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+    titleSmall = base.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+    labelLarge = base.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+    labelMedium = base.labelMedium.copy(fontWeight = FontWeight.Medium),
 )
 
-val ExpressiveHeadline = TextStyle(
-    fontFamily = FontFamily.Default,
-    fontWeight = FontWeight.SemiBold,
-    fontSize = 30.sp,
-    lineHeight = 36.sp
+/** Huge numerals for the storage gauge. */
+val GaugeNumberStyle = TextStyle(
+    fontSize = 64.sp,
+    lineHeight = 64.sp,
+    fontWeight = FontWeight.Black,
+    letterSpacing = (-0.05).em,
 )
 
-val FichioTypography = Typography().run {
-    copy(
-        displayLarge = ExpressiveDisplay,
-        headlineLarge = ExpressiveHeadline,
-        titleLarge = TextStyle(
-            fontFamily = FontFamily.Default,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 20.sp,
-            lineHeight = 26.sp
-        ),
-        titleMedium = TextStyle(
-            fontFamily = FontFamily.Default,
-            fontWeight = FontWeight.Medium,
-            fontSize = 16.sp,
-            lineHeight = 22.sp
-        ),
-        bodyLarge = TextStyle(
-            fontFamily = FontFamily.Default,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 24.sp
-        ),
-        bodyMedium = TextStyle(
-            fontFamily = FontFamily.Default,
-            fontWeight = FontWeight.Normal,
-            fontSize = 14.sp,
-            lineHeight = 20.sp
-        ),
-        labelLarge = TextStyle(
-            fontFamily = FontFamily.Default,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            lineHeight = 20.sp
-        )
-    )
-}
+val MonoStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 13.sp, lineHeight = 19.sp)

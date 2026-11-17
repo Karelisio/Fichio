@@ -2,82 +2,50 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.ksp)
 }
 
-// Read the single source of truth for the version name from the VERSION file at repo root.
-val versionFile = rootProject.file("VERSION")
-val versionName: String = if (versionFile.exists()) {
-    versionFile.readText().trim().ifEmpty { "0.1.0" }
-} else {
-    "0.1.0"
-}
-// versionCode comes from github.run_number on CI, otherwise a local fallback.
-val versionCode: Int = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()) ?: 1
+// VERSION (repo root) is the single source of truth for versionName.
+val appVersionName: String = rootProject.file("VERSION").takeIf { it.exists() }
+    ?.readText()?.trim()?.ifEmpty { null } ?: "0.0.0"
+// versionCode = github.run_number on CI, 1 locally.
+val appVersionCode: Int = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
 
-// Release signing: read the keystore from CI environment variables (GitHub Secrets)
-// or from a local keystore.properties file. Falls back to the debug keystore so that
-// `./gradlew assembleRelease` still works locally without any secrets.
-val keystorePropertiesFile = rootProject.file("keystore.properties")
-val keystoreProperties = Properties().apply {
-    if (keystorePropertiesFile.exists()) {
-        keystorePropertiesFile.inputStream().use { load(it) }
-    }
+// Release signing from CI env (GitHub secrets) or a local, git-ignored keystore.properties.
+val keystoreProps = Properties().apply {
+    rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
 }
-fun resolveKeystorePath(raw: String?): String? {
-    if (raw.isNullOrBlank()) return null
-    val f = File(raw)
-    return if (f.isAbsolute) raw else rootProject.file(raw).absolutePath
-}
-val releaseKeystorePath: String? =
-    resolveKeystorePath(
-        System.getenv("FICHIO_KEYSTORE_PATH")
-            ?: keystoreProperties.getProperty("storeFile")
-    )
-val releaseStorePassword: String =
-    System.getenv("FICHIO_KEYSTORE_PASSWORD")
-        ?: keystoreProperties.getProperty("storePassword")
-        ?: ""
-val releaseKeyAlias: String =
-    System.getenv("FICHIO_KEY_ALIAS")
-        ?: keystoreProperties.getProperty("keyAlias")
-        ?: ""
-val releaseKeyPassword: String =
-    System.getenv("FICHIO_KEY_PASSWORD")
-        ?: keystoreProperties.getProperty("keyPassword")
-        ?: ""
+fun secret(env: String, prop: String): String? =
+    System.getenv(env)?.takeIf { it.isNotBlank() } ?: keystoreProps.getProperty(prop)
+
+val releaseStoreFile: File? = secret("FICHIO_KEYSTORE_PATH", "storeFile")
+    ?.let { if (File(it).isAbsolute) File(it) else rootProject.file(it) }
+    ?.takeIf { it.exists() }
 
 android {
     namespace = "com.karelisio.fichio"
-    compileSdk = 36
-
-    signingConfigs {
-        if (releaseKeystorePath != null && File(releaseKeystorePath).exists()) {
-            create("release") {
-                storeFile = file(releaseKeystorePath)
-                storePassword = releaseStorePassword
-                keyAlias = releaseKeyAlias
-                keyPassword = releaseKeyPassword
-            }
-        }
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.karelisio.fichio"
-        minSdk = 26
+        minSdk = 30
         targetSdk = 36
-        versionCode = versionCode
-        versionName = versionName
-
+        versionCode = appVersionCode
+        versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables {
-            useSupportLibrary = true
-        }
+        buildConfigField("String", "UPDATE_REPO", "\"Karelisio/Fichio\"")
+    }
 
-        // Room schema export location (not committed).
-        ksp {
-            arg("room.schemaLocation", "$projectDir/schemas")
+    signingConfigs {
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storePassword = secret("FICHIO_KEYSTORE_PASSWORD", "storePassword")
+                keyAlias = secret("FICHIO_KEY_ALIAS", "keyAlias")
+                keyPassword = secret("FICHIO_KEY_PASSWORD", "keyPassword")
+            }
         }
     }
 
@@ -85,12 +53,8 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            signingConfig = signingConfigs.findByName("release")
-                ?: signingConfigs.getByName("debug")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
         debug {
             applicationIdSuffix = ".debug"
@@ -103,18 +67,17 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
         aidl = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
     }
 
     packaging {
@@ -123,90 +86,95 @@ android {
                 "/META-INF/{AL2.0,LGPL2.1}",
                 "META-INF/DEPENDENCIES",
                 "META-INF/LICENSE*",
-                "META-INF/NOTICE*"
+                "META-INF/NOTICE*",
+                "META-INF/INDEX.LIST",
+                "META-INF/io.netty.versions.properties",
             )
         }
     }
 }
 
+kotlin {
+    compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    compilerOptions {
+        optIn.addAll(
+            "androidx.compose.material3.ExperimentalMaterial3Api",
+            "androidx.compose.material3.ExperimentalMaterial3ExpressiveApi",
+            "androidx.compose.foundation.ExperimentalFoundationApi",
+            "androidx.compose.animation.ExperimentalSharedTransitionApi",
+            "androidx.compose.animation.ExperimentalAnimationApi",
+            "kotlinx.coroutines.ExperimentalCoroutinesApi",
+        )
+        freeCompilerArgs.add("-Xannotation-default-target=param-property")
+    }
+}
+
+ksp {
+    arg("room.generateKotlin", "true")
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
-    // Core + AndroidX
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.process)
+    implementation(libs.androidx.lifecycle.service)
     implementation(libs.androidx.navigation.compose)
-    implementation(libs.androidx.documentfile)
+    implementation(libs.androidx.graphics.shapes)
 
-    // Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material3.adaptive)
     implementation(libs.androidx.compose.material.icons)
     implementation(libs.androidx.compose.animation)
+    debugImplementation(libs.androidx.compose.ui.tooling)
 
-    // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // DataStore + WorkManager
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.work.runtime.ktx)
 
-    // Glance (widget)
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
 
-    // Coil (thumbnails)
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
 
-    // Media3 (audio/video playback)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
+    implementation(libs.media3.session)
 
-    // Ktor (local transfer server)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
-    implementation(libs.ktor.server.content.negotiation)
-    implementation(libs.ktor.serialization.kotlinx.json)
-    implementation(libs.ktor.server.websockets)
-    implementation(libs.ktor.server.call.logging)
 
-    // Coroutines + serialization
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
 
-    // Archives
     implementation(libs.zip4j)
     implementation(libs.commons.compress)
     implementation(libs.junrar)
     implementation(libs.xz)
 
-    // Shizuku / Shevery
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
 
-    // QR code
     implementation(libs.zxing.core)
 
-    // Debug tooling
-    debugImplementation(libs.androidx.compose.ui.tooling)
-
-    // Tests
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.junit)
     testImplementation(libs.robolectric)
-    testImplementation(libs.kotlinx.coroutines.android)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

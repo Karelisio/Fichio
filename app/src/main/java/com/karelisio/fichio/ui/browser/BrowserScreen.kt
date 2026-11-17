@@ -1,507 +1,679 @@
 package com.karelisio.fichio.ui.browser
 
-import androidx.compose.foundation.ExperimentalFoundationApi
+import android.content.res.Configuration
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.ContentCut
-import androidx.compose.material.icons.outlined.ContentPaste
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.DriveFileRenameOutline
-import androidx.compose.material.icons.outlined.GridView
-import androidx.compose.material.icons.outlined.List
-import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material.icons.outlined.SelectAll
-import androidx.compose.material.icons.outlined.Sort
-import androidx.compose.material.icons.outlined.Undo
+import androidx.compose.material.icons.automirrored.rounded.DriveFileMove
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AddHome
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ContentCut
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.rounded.CreateNewFolder
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DriveFileRenameOutline
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.FolderZip
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.NoteAdd
+import androidx.compose.material.icons.rounded.PhotoLibrary
+import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SelectAll
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarOutline
+import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.Tab
+import androidx.compose.material.icons.rounded.Unarchive
+import androidx.compose.material.icons.rounded.ViewList
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.animateFloatingActionButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.karelisio.fichio.data.db.SortMode
-import com.karelisio.fichio.data.db.ViewMode
-import com.karelisio.fichio.domain.file.FileItem
-import com.karelisio.fichio.domain.file.formatBytes
-import com.karelisio.fichio.domain.file.formatDate
+import androidx.navigation.NavHostController
+import com.karelisio.fichio.archive.CompressSheet
+import com.karelisio.fichio.archive.ExtractSheet
+import com.karelisio.fichio.container
+import com.karelisio.fichio.core.fs.StoragePaths
+import com.karelisio.fichio.core.model.FileEntry
+import com.karelisio.fichio.core.model.FileType
+import com.karelisio.fichio.core.model.SortBy
+import com.karelisio.fichio.core.model.ViewMode
+import com.karelisio.fichio.core.util.Format
+import com.karelisio.fichio.ops.BatchRenameSheet
+import com.karelisio.fichio.ops.NewItemDialog
+import com.karelisio.fichio.ops.OperationsIndicator
+import com.karelisio.fichio.ops.OperationsSheet
+import com.karelisio.fichio.ops.PropertiesSheet
+import com.karelisio.fichio.ops.RenameDialog
+import com.karelisio.fichio.preview.MiniPlayerBar
+import com.karelisio.fichio.shortcuts.Shortcuts
+import com.karelisio.fichio.ui.components.AnimatedCounter
 import com.karelisio.fichio.ui.components.FileThumbnail
-import com.karelisio.fichio.ui.components.FileTypeIcon
+import com.karelisio.fichio.ui.components.bouncy
+import com.karelisio.fichio.ui.components.flyTarget
+import com.karelisio.fichio.ui.components.rememberHaptics
+import com.karelisio.fichio.ui.navigation.LocalPickerRequest
+import com.karelisio.fichio.ui.navigation.LocalPickerResult
+import com.karelisio.fichio.ui.navigation.Opener
+import com.karelisio.fichio.ui.navigation.Route
+import com.karelisio.fichio.ui.navigation.openEntry
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+private sealed interface BrowserDialog {
+    data class Rename(val entry: FileEntry) : BrowserDialog
+    data class BatchRename(val entries: List<FileEntry>) : BrowserDialog
+    data class NewItem(val parent: String, val folder: Boolean) : BrowserDialog
+    data class Properties(val entries: List<FileEntry>) : BrowserDialog
+    data class Compress(val entries: List<FileEntry>, val dest: String) : BrowserDialog
+    data class Extract(val path: String) : BrowserDialog
+    data class Delete(val entries: List<FileEntry>) : BrowserDialog
+    data object Operations : BrowserDialog
+}
+
 @Composable
-fun BrowserScreen(
-    path: String,
-    onOpenFolder: (String) -> Unit,
-    onBack: () -> Unit,
-    onOpenFile: (FileItem) -> Unit
-) {
-    val viewModel: BrowserViewModel = viewModel(factory = BrowserViewModel.factory(path))
-    val items by viewModel.items.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
-    val sortMode by viewModel.sortMode.collectAsStateWithLifecycle()
-    val sortAscending by viewModel.sortAscending.collectAsStateWithLifecycle()
-    val foldersFirst by viewModel.foldersFirst.collectAsStateWithLifecycle()
-    val showHidden by viewModel.showHidden.collectAsStateWithLifecycle()
-    val selection by viewModel.selection.collectAsStateWithLifecycle()
+fun BrowserScreen(nav: NavHostController, initialPath: String?, newTab: Boolean) {
+    val vm: BrowserViewModel = viewModel()
+    val context = LocalContext.current
+    val c = context.container
+    val scope = rememberCoroutineScope()
+    val haptics = rememberHaptics()
+    val picker = LocalPickerRequest.current
+    val pickerResult = LocalPickerResult.current
 
-    var sortMenuOpen by remember { mutableStateOf(false) }
-    val clipboard by viewModel.clipboard.collectAsStateWithLifecycle()
-    val undoMessage by viewModel.undoMessage.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
-    var renameTarget by remember { mutableStateOf<FileItem?>(null) }
-
-    LaunchedEffect(undoMessage) {
-        val message = undoMessage ?: return@LaunchedEffect
-        val result = snackbarHostState.showSnackbar(
-            message = message,
-            actionLabel = "Annuler",
-            duration = SnackbarDuration.Short
-        )
-        if (result == SnackbarResult.ActionPerformed) viewModel.undo() else viewModel.dismissUndo()
+    LaunchedEffect(initialPath, newTab) { vm.init(initialPath, newTab) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        vm.current?.refresh(); vm.secondary?.refresh(); c.volumes.refresh()
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        bottomBar = {
-            if (selection.isNotEmpty()) {
-                SelectionActionBar(
-                    count = selection.size,
-                    onCopy = viewModel::copySelection,
-                    onCut = viewModel::cutSelection,
-                    onRename = { renameTarget = items.firstOrNull { it.path in selection } },
-                    onDelete = viewModel::deleteSelection,
-                    onSelectAll = viewModel::selectAll,
-                    onInvert = viewModel::invertSelection
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val favorites by vm.favorites.collectAsStateWithLifecycle()
+    val volumes by vm.volumes.collectAsStateWithLifecycle()
+    val clip by FileClipboard.content.collectAsStateWithLifecycle()
+
+    val config = LocalConfiguration.current
+    val dual = settings.dualPaneInLandscape && picker == null &&
+        config.orientation == Configuration.ORIENTATION_LANDSCAPE && config.screenWidthDp >= 600
+    LaunchedEffect(dual) { if (dual) vm.ensureSecondary() }
+
+    val pane = vm.activeState(dual) ?: return
+    val main = vm.current ?: return
+    var dialog by remember { mutableStateOf<BrowserDialog?>(null) }
+    val snackbar = remember { SnackbarHostState() }
+    val drag = remember { PaneDragState() }
+
+    fun openFile(e: FileEntry) {
+        if (picker != null) {
+            if (picker.allowMultiple) pane.toggle(e) else pickerResult(listOf(e.path))
+            return
+        }
+        if (e.type == FileType.IMAGE && settings.openImagesInPolaro && Opener.isPolaroInstalled(context)) {
+            c.recents.record(e.path)
+            if (Opener.openInPolaro(context, e.path)) return
+        }
+        nav.openEntry(context, e)
+    }
+
+    fun paste(dest: String) {
+        val content = clip ?: return
+        val paths = content.entries.map { it.path }
+        if (content.cut) { c.operations.move(paths, dest); FileClipboard.clear() } else c.operations.copy(paths, dest)
+        haptics.confirm()
+    }
+
+    fun drop(entries: List<FileEntry>, dest: String) {
+        val paths = entries.map { it.path }
+        // Same volume → move, otherwise copy (like most desktop file managers).
+        val sameVolume = volumes.firstOrNull { dest.startsWith(it.path) }?.path == volumes.firstOrNull { paths.first().startsWith(it.path) }?.path
+        if (sameVolume) c.operations.move(paths, dest) else c.operations.copy(paths, dest)
+        vm.tabs.forEach { it.clearSelection() }; vm.secondary?.clearSelection()
+    }
+
+    val selectionCount = pane.selection.size
+
+    CompositionLocalProvider(LocalPaneDrag provides drag) {
+        Scaffold(
+            topBar = {
+                AnimatedContent(
+                    targetState = pane.inSelection,
+                    transitionSpec = { (fadeIn() + slideInVertically { -it / 3 }) togetherWith (fadeOut() + slideOutVertically { -it / 3 }) },
+                    label = "topbar",
+                ) { selecting ->
+                    if (selecting) SelectionTopBar(
+                        count = selectionCount,
+                        onClose = { pane.clearSelection() },
+                        onSelectAll = { pane.selectAll(); haptics.tick() },
+                        onInvert = { pane.invertSelection(); haptics.tick() },
+                    ) else BrowserTopBar(
+                        vm = vm,
+                        pane = pane,
+                        isFavorite = pane.path in favorites,
+                        showHidden = settings.showHidden,
+                        dualAvailable = config.orientation == Configuration.ORIENTATION_LANDSCAPE,
+                        dualOn = settings.dualPaneInLandscape,
+                        onHome = { if (!nav.popBackStack(Route.Home, inclusive = false)) nav.navigate(Route.Home) },
+                        onSearch = { nav.navigate(Route.Search(pane.path)) },
+                        onNewItem = { folder -> dialog = BrowserDialog.NewItem(pane.path, folder) },
+                        onProperties = {
+                            c.fileSystems.local.stat(pane.path)?.let { dialog = BrowserDialog.Properties(listOf(it)) }
+                        },
+                        onPinShortcut = { Shortcuts.pinFolder(context, pane.path, StoragePaths.displayName(pane.path, volumes)) },
+                        onToggleDual = { scope.launch { c.settings.setDualPaneInLandscape(!settings.dualPaneInLandscape) } },
+                    )
+                }
+            },
+            snackbarHost = { SnackbarHost(snackbar) },
+            floatingActionButton = {
+                if (picker == null) NewItemFab(
+                    visible = !pane.inSelection,
+                    onNewFolder = { dialog = BrowserDialog.NewItem(pane.path, true) },
+                    onNewFile = { dialog = BrowserDialog.NewItem(pane.path, false) },
                 )
-            } else if (clipboard) {
-                PasteBar(
-                    onPaste = viewModel::paste,
-                    onClear = viewModel::clearClipboard
-                )
-            }
-        },
-        topBar = {
-            Column {
-                TopAppBar(
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Retour")
+            },
+        ) { padding ->
+            Box(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
+                val bottomPad = PaddingValues(bottom = 160.dp + padding.calculateBottomPadding())
+                if (dual && vm.secondary != null) {
+                    Row(Modifier.fillMaxSize()) {
+                        PaneFrame(active = vm.activePane == 0, modifier = Modifier.weight(1f)) {
+                            FolderPane(main, favorites, volumes, vm.activePane == 0, true, ::openFile, ::drop,
+                                contentPadding = bottomPad, onActivate = { vm.activePane = 0 })
                         }
-                    },
-                    title = { Breadcrumb(path = path, onOpenFolder = onOpenFolder) },
-                    actions = {
-                        if (selection.isNotEmpty()) {
-                            IconButton(onClick = viewModel::selectAll) {
-                                Icon(Icons.Outlined.Check, contentDescription = "Tout sélectionner")
-                            }
-                            IconButton(onClick = viewModel::clearSelection) {
-                                Text("${selection.size}")
-                            }
-                        } else {
-                            IconButton(onClick = { sortMenuOpen = true }) {
-                                Icon(Icons.Outlined.Sort, contentDescription = "Trier")
-                            }
-                            DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
-                                SortMode.entries.forEach { mode ->
-                                    DropdownMenuItem(
-                                        text = { Text(sortLabel(mode)) },
-                                        onClick = {
-                                            viewModel.setSortMode(mode)
-                                            sortMenuOpen = false
-                                        }
-                                    )
-                                }
-                                DropdownMenuItem(
-                                    text = { Text(if (sortAscending) "Ordre croissant" else "Ordre décroissant") },
-                                    onClick = { viewModel.toggleSortDirection() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Dossiers en premier · ${if (foldersFirst) "oui" else "non"}") },
-                                    onClick = { viewModel.toggleFoldersFirst() }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Fichiers cachés · ${if (showHidden) "oui" else "non"}") },
-                                    onClick = { viewModel.toggleHidden() }
-                                )
-                            }
+                        VerticalDivider(Modifier.padding(vertical = 24.dp))
+                        PaneFrame(active = vm.activePane == 1, modifier = Modifier.weight(1f)) {
+                            FolderPane(vm.secondary!!, favorites, volumes, vm.activePane == 1, true, ::openFile, ::drop,
+                                contentPadding = bottomPad, onActivate = { vm.activePane = 1 })
                         }
                     }
-                )
-                ViewToggleRow(viewMode = viewMode, onSelect = viewModel::setViewMode)
-            }
-        }
-    ) { padding ->
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            when {
-                isLoading -> Text(
-                    "Chargement…",
-                    modifier = Modifier.align(Alignment.Center),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                items.isEmpty() -> Text(
-                    "Dossier vide",
-                    modifier = Modifier.align(Alignment.Center),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                viewMode == ViewMode.LIST -> FileList(
-                    items = items,
-                    selection = selection,
-                    onToggle = { viewModel.toggleSelection(it.path) },
-                    onOpenFolder = onOpenFolder,
-                    onOpenFile = onOpenFile
-                )
-                else -> FileGrid(
-                    items = items,
-                    selection = selection,
-                    large = viewMode == ViewMode.LARGE,
-                    onToggle = { viewModel.toggleSelection(it.path) },
-                    onOpenFolder = onOpenFolder,
-                    onOpenFile = onOpenFile
-                )
+                } else {
+                    FolderPane(main, favorites, volumes, true, false, ::openFile, ::drop, contentPadding = bottomPad)
+                }
+
+                // Bottom stack: mini player, operations, paste bar, selection toolbar.
+                Column(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(bottom = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    MiniPlayerBar(onOpen = { nav.navigate(if (it.startsWith("content://")) Route.UriPreview(it) else Route.Preview(it)) })
+                    OperationsIndicator(onClick = { dialog = BrowserDialog.Operations })
+                    AnimatedVisibility(
+                        visible = clip != null && !pane.inSelection && picker == null,
+                        enter = scaleIn(bouncy()) + fadeIn(), exit = scaleOut() + fadeOut(),
+                    ) {
+                        clip?.let { PasteBar(it, onPaste = { paste(pane.path) }, onCancel = { FileClipboard.clear() }) }
+                    }
+                    AnimatedVisibility(
+                        visible = pane.inSelection,
+                        enter = slideInVertically(bouncy()) { it } + fadeIn(),
+                        exit = slideOutVertically { it } + fadeOut(),
+                    ) {
+                        if (picker != null) PickerBar(selectionCount) { pickerResult(pane.selectedEntries().filter { !it.isDirectory }.map { it.path }) }
+                        else SelectionToolbar(
+                            entries = pane.selectedEntries(),
+                            favorites = favorites,
+                            onCopy = { FileClipboard.copy(pane.selectedEntries()); pane.clearSelection(); haptics.confirm() },
+                            onCut = { FileClipboard.cut(pane.selectedEntries()); pane.clearSelection(); haptics.confirm() },
+                            onDelete = {
+                                val sel = pane.selectedEntries()
+                                if (settings.confirmDelete) dialog = BrowserDialog.Delete(sel)
+                                else { c.operations.trash(sel.map { it.path }); pane.clearSelection() }
+                            },
+                            onRename = {
+                                val sel = pane.selectedEntries()
+                                dialog = if (sel.size == 1) BrowserDialog.Rename(sel[0]) else BrowserDialog.BatchRename(sel)
+                            },
+                            onShare = { Opener.share(context, pane.selectedEntries().filter { !it.isDirectory }.map { it.path }) },
+                            onCompress = { dialog = BrowserDialog.Compress(pane.selectedEntries(), pane.path) },
+                            onExtract = { e -> dialog = BrowserDialog.Extract(e.path) },
+                            onProperties = { dialog = BrowserDialog.Properties(pane.selectedEntries()) },
+                            onFavorite = { e -> vm.toggleFavorite(e.path) },
+                            onOpenWith = { e -> Opener.openExternally(context, e.path, chooser = true) },
+                            onOpenInTab = { e -> if (vm.addTab(e.path)) pane.clearSelection() },
+                            onPinShortcut = { e -> Shortcuts.pinFolder(context, e.path, e.name) },
+                            onBatchRename = { dialog = BrowserDialog.BatchRename(pane.selectedEntries()) },
+                        )
+                    }
+                }
+
+                // Drag & drop ghost (dual pane).
+                if (drag.active) DragGhost(drag)
             }
         }
     }
 
-    renameTarget?.let { target ->
-        RenameDialog(
-            item = target,
-            onDismiss = { renameTarget = null },
-            onConfirm = { newName ->
-                viewModel.renameItem(target.path, newName)
-                renameTarget = null
+    // Undo snackbar for operations finished while the browser is visible.
+    LaunchedEffect(Unit) {
+        c.operations.events.collect { e ->
+            if (e is com.karelisio.fichio.ops.OperationEvent.Finished && e.undoLabel != null) {
+                scope.launch {
+                    val r = snackbar.showSnackbar(e.undoLabel, actionLabel = "Annuler", withDismissAction = true,
+                        duration = androidx.compose.material3.SnackbarDuration.Long)
+                    if (r == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                        if (c.undo.undo()) haptics.confirm() else snackbar.showSnackbar("Impossible d'annuler")
+                    }
+                }
+            } else if (e is com.karelisio.fichio.ops.OperationEvent.Message) {
+                scope.launch { snackbar.showSnackbar(e.text) }
             }
+        }
+    }
+
+    when (val d = dialog) {
+        is BrowserDialog.Rename -> RenameDialog(d.entry, onDismiss = { dialog = null; pane.clearSelection() })
+        is BrowserDialog.BatchRename -> BatchRenameSheet(d.entries, onDismiss = { dialog = null; pane.clearSelection() })
+        is BrowserDialog.NewItem -> NewItemDialog(d.parent, d.folder, onDismiss = { dialog = null })
+        is BrowserDialog.Properties -> PropertiesSheet(d.entries, onDismiss = { dialog = null })
+        is BrowserDialog.Compress -> CompressSheet(d.entries, d.dest, onDismiss = { dialog = null; pane.clearSelection() })
+        is BrowserDialog.Extract -> ExtractSheet(d.path, onDismiss = { dialog = null; pane.clearSelection() })
+        BrowserDialog.Operations -> OperationsSheet(onDismiss = { dialog = null })
+        is BrowserDialog.Delete -> DeleteDialog(
+            d.entries, trashEnabled = settings.trashEnabled,
+            onDismiss = { dialog = null },
+            onConfirm = { permanent ->
+                val paths = d.entries.map { it.path }
+                if (permanent) c.operations.deletePermanently(paths) else c.operations.trash(paths)
+                pane.clearSelection(); dialog = null; haptics.confirm()
+            },
         )
+        null -> Unit
     }
 }
 
 @Composable
-private fun RenameDialog(item: FileItem, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
-    var value by remember(item.path) { mutableStateOf(item.name) }
+private fun PaneFrame(active: Boolean, modifier: Modifier, content: @Composable () -> Unit) {
+    val alpha by animateFloatAsState(if (active) 1f else 0f, label = "paneActive")
+    Box(
+        modifier.fillMaxHeight().padding(4.dp).clip(RoundedCornerShape(28.dp))
+            .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f * alpha), RoundedCornerShape(28.dp)),
+    ) { content() }
+}
+
+@Composable
+private fun BrowserTopBar(
+    vm: BrowserViewModel,
+    pane: PaneState,
+    isFavorite: Boolean,
+    showHidden: Boolean,
+    dualAvailable: Boolean,
+    dualOn: Boolean,
+    onHome: () -> Unit,
+    onSearch: () -> Unit,
+    onNewItem: (Boolean) -> Unit,
+    onProperties: () -> Unit,
+    onPinShortcut: () -> Unit,
+    onToggleDual: () -> Unit,
+) {
+    var viewMenu by remember { mutableStateOf(false) }
+    var sortMenu by remember { mutableStateOf(false) }
+    var more by remember { mutableStateOf(false) }
+    val view = pane.view(pane.path)
+    Row(
+        Modifier.fillMaxWidth().statusBarsPadding().padding(start = 4.dp, end = 4.dp, top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onHome) { Icon(Icons.Rounded.Home, "Accueil") }
+        TabStrip(vm, Modifier.weight(1f))
+        IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Rechercher") }
+        Box {
+            IconButton(onClick = { viewMenu = true }) {
+                Icon(when (view.mode) { ViewMode.LIST -> Icons.Rounded.ViewList; ViewMode.GRID -> Icons.Rounded.GridView; ViewMode.LARGE -> Icons.Rounded.PhotoLibrary }, "Affichage")
+            }
+            DropdownMenu(viewMenu, onDismissRequest = { viewMenu = false }, shape = RoundedCornerShape(20.dp)) {
+                listOf(ViewMode.LIST to "Liste", ViewMode.GRID to "Grille", ViewMode.LARGE to "Grandes miniatures").forEach { (m, label) ->
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        leadingIcon = { Icon(when (m) { ViewMode.LIST -> Icons.Rounded.ViewList; ViewMode.GRID -> Icons.Rounded.GridView; ViewMode.LARGE -> Icons.Rounded.PhotoLibrary }, null) },
+                        trailingIcon = { if (view.mode == m) Icon(Icons.Rounded.Check, null) },
+                        onClick = { pane.setView(mode = m); viewMenu = false },
+                    )
+                }
+            }
+        }
+        Box {
+            IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Rounded.Sort, "Trier") }
+            DropdownMenu(sortMenu, onDismissRequest = { sortMenu = false }, shape = RoundedCornerShape(20.dp)) {
+                listOf(SortBy.NAME to "Nom", SortBy.DATE to "Date", SortBy.SIZE to "Taille", SortBy.TYPE to "Type").forEach { (s, label) ->
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        leadingIcon = { RadioButton(selected = view.sort.by == s, onClick = null) },
+                        onClick = { pane.setView(sort = view.sort.copy(by = s)) },
+                    )
+                }
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text("Ordre croissant") },
+                    leadingIcon = { Checkbox(view.sort.ascending, onCheckedChange = null) },
+                    onClick = { pane.setView(sort = view.sort.copy(ascending = !view.sort.ascending)) },
+                )
+                DropdownMenuItem(
+                    text = { Text("Dossiers en premier") },
+                    leadingIcon = { Checkbox(view.sort.foldersFirst, onCheckedChange = null) },
+                    onClick = { pane.setView(sort = view.sort.copy(foldersFirst = !view.sort.foldersFirst)) },
+                )
+            }
+        }
+        Box {
+            IconButton(onClick = { more = true }) { Icon(Icons.Rounded.MoreVert, "Plus") }
+            DropdownMenu(more, onDismissRequest = { more = false }, shape = RoundedCornerShape(20.dp)) {
+                DropdownMenuItem(text = { Text("Nouveau dossier") }, leadingIcon = { Icon(Icons.Rounded.CreateNewFolder, null) }, onClick = { more = false; onNewItem(true) })
+                DropdownMenuItem(text = { Text("Nouveau fichier") }, leadingIcon = { Icon(Icons.Rounded.NoteAdd, null) }, onClick = { more = false; onNewItem(false) })
+                DropdownMenuItem(text = { Text("Tout sélectionner") }, leadingIcon = { Icon(Icons.Rounded.SelectAll, null) }, onClick = { more = false; pane.selectAll() })
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text(if (isFavorite) "Retirer des favoris" else "Ajouter aux favoris") },
+                    leadingIcon = { Icon(if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarOutline, null) },
+                    onClick = { more = false; vm.toggleFavorite(pane.path) },
+                )
+                DropdownMenuItem(text = { Text("Épingler") }, leadingIcon = { Icon(Icons.Rounded.PushPin, null) }, onClick = { more = false; vm.pin(pane.path) })
+                DropdownMenuItem(text = { Text("Raccourci sur l'écran d'accueil") }, leadingIcon = { Icon(Icons.Rounded.AddHome, null) }, onClick = { more = false; onPinShortcut() })
+                DropdownMenuItem(
+                    text = { Text("Nouvel onglet") }, leadingIcon = { Icon(Icons.Rounded.Tab, null) },
+                    enabled = vm.tabs.size < MAX_TABS, onClick = { more = false; vm.addTab(pane.path) },
+                )
+                if (dualAvailable) DropdownMenuItem(
+                    text = { Text(if (dualOn) "Volet unique" else "Double volet") }, leadingIcon = { Icon(Icons.Rounded.SwapHoriz, null) },
+                    onClick = { more = false; onToggleDual() },
+                )
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text("Fichiers cachés") },
+                    leadingIcon = { Icon(if (showHidden) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff, null) },
+                    trailingIcon = { Checkbox(showHidden, onCheckedChange = null) },
+                    onClick = { more = false; vm.setShowHidden(!showHidden) },
+                )
+                DropdownMenuItem(text = { Text("Propriétés du dossier") }, leadingIcon = { Icon(Icons.Rounded.Info, null) }, onClick = { more = false; onProperties() })
+            }
+        }
+    }
+}
+
+/** Up to 5 tabs as expressive chips; tap to switch, × to close, + to add. */
+@Composable
+private fun TabStrip(vm: BrowserViewModel, modifier: Modifier) {
+    val scroll = rememberScrollState()
+    val haptics = rememberHaptics()
+    Row(modifier.horizontalScroll(scroll), verticalAlignment = Alignment.CenterVertically) {
+        vm.tabs.forEachIndexed { i, tab ->
+            val selected = i == vm.selectedTab
+            val scale by animateFloatAsState(if (selected) 1f else 0.94f, bouncy(), label = "tab")
+            Surface(
+                onClick = { vm.selectTab(i); haptics.tick() },
+                shape = RoundedCornerShape(if (selected) 16.dp else 50.dp),
+                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.padding(end = 6.dp).graphicsLayer { scaleX = scale; scaleY = scale }.animateContentSize(bouncy()),
+            ) {
+                Row(Modifier.padding(start = 14.dp, end = if (selected && vm.tabs.size > 1) 4.dp else 14.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        StoragePaths.name(tab.path).ifEmpty { "/" }.let { if (tab.path == StoragePaths.primary) "Interne" else it },
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 140.dp),
+                    )
+                    if (selected && vm.tabs.size > 1) {
+                        IconButton(onClick = { vm.closeTab(i) }, modifier = Modifier.size(28.dp)) { Icon(Icons.Rounded.Close, "Fermer l'onglet", Modifier.size(16.dp)) }
+                    }
+                }
+            }
+        }
+        if (vm.tabs.size < MAX_TABS) {
+            IconButton(onClick = { vm.addTab(); haptics.tick() }) { Icon(Icons.Rounded.Add, "Nouvel onglet") }
+        }
+    }
+}
+
+@Composable
+private fun SelectionTopBar(count: Int, onClose: () -> Unit, onSelectAll: () -> Unit, onInvert: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).statusBarsPadding().padding(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Annuler la sélection") }
+        AnimatedCounter("$count", style = MaterialTheme.typography.titleLarge)
+        Text(if (count > 1) " sélectionnés" else " sélectionné", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        TextButton(onClick = onInvert) { Text("Inverser") }
+        IconButton(onClick = onSelectAll) { Icon(Icons.Rounded.SelectAll, "Tout sélectionner") }
+    }
+}
+
+@Composable
+private fun SelectionToolbar(
+    entries: List<FileEntry>,
+    favorites: Set<String>,
+    onCopy: () -> Unit,
+    onCut: () -> Unit,
+    onDelete: () -> Unit,
+    onRename: () -> Unit,
+    onShare: () -> Unit,
+    onCompress: () -> Unit,
+    onExtract: (FileEntry) -> Unit,
+    onProperties: () -> Unit,
+    onFavorite: (FileEntry) -> Unit,
+    onOpenWith: (FileEntry) -> Unit,
+    onOpenInTab: (FileEntry) -> Unit,
+    onPinShortcut: (FileEntry) -> Unit,
+    onBatchRename: () -> Unit,
+) {
+    var more by remember { mutableStateOf(false) }
+    val single = entries.singleOrNull()
+    HorizontalFloatingToolbar(
+        expanded = true,
+        colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
+    ) {
+        IconButton(onClick = onCopy) { Icon(Icons.Rounded.ContentCopy, "Copier") }
+        IconButton(onClick = onCut) { Icon(Icons.Rounded.ContentCut, "Couper") }
+        IconButton(onClick = onRename) { Icon(Icons.Rounded.DriveFileRenameOutline, "Renommer") }
+        IconButton(onClick = onShare, enabled = entries.any { !it.isDirectory }) { Icon(Icons.Rounded.Share, "Partager") }
+        IconButton(onClick = onDelete) { Icon(Icons.Rounded.Delete, "Supprimer") }
+        Box {
+            IconButton(onClick = { more = true }) { Icon(Icons.Rounded.MoreVert, "Plus") }
+            DropdownMenu(more, onDismissRequest = { more = false }, shape = RoundedCornerShape(20.dp)) {
+                DropdownMenuItem(text = { Text("Compresser") }, leadingIcon = { Icon(Icons.Rounded.FolderZip, null) }, onClick = { more = false; onCompress() })
+                if (single != null && single.type == FileType.ARCHIVE) DropdownMenuItem(text = { Text("Extraire") }, leadingIcon = { Icon(Icons.Rounded.Unarchive, null) }, onClick = { more = false; onExtract(single) })
+                if (entries.size > 1) DropdownMenuItem(text = { Text("Renommer en lot") }, leadingIcon = { Icon(Icons.Rounded.Edit, null) }, onClick = { more = false; onBatchRename() })
+                if (single != null && !single.isDirectory) DropdownMenuItem(text = { Text("Ouvrir avec…") }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) }, onClick = { more = false; onOpenWith(single) })
+                if (single != null && single.isDirectory) {
+                    DropdownMenuItem(
+                        text = { Text(if (single.path in favorites) "Retirer des favoris" else "Ajouter aux favoris") },
+                        leadingIcon = { Icon(if (single.path in favorites) Icons.Rounded.Star else Icons.Rounded.StarOutline, null) },
+                        onClick = { more = false; onFavorite(single) },
+                    )
+                    DropdownMenuItem(text = { Text("Ouvrir dans un onglet") }, leadingIcon = { Icon(Icons.Rounded.Tab, null) }, onClick = { more = false; onOpenInTab(single) })
+                    DropdownMenuItem(text = { Text("Raccourci sur l'écran d'accueil") }, leadingIcon = { Icon(Icons.Rounded.AddHome, null) }, onClick = { more = false; onPinShortcut(single) })
+                }
+                DropdownMenuItem(text = { Text("Propriétés") }, leadingIcon = { Icon(Icons.Rounded.Info, null) }, onClick = { more = false; onProperties() })
+            }
+        }
+    }
+}
+
+@Composable
+private fun PasteBar(content: ClipContent, onPaste: () -> Unit, onCancel: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(32.dp),
+        color = MaterialTheme.colorScheme.inverseSurface,
+        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+        shadowElevation = 6.dp,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    ) {
+        Row(Modifier.padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).flyTarget("clipboard")) {
+                content.entries.take(3).forEachIndexed { i, e ->
+                    FileThumbnail(e, size = 36.dp, modifier = Modifier.offset { IntOffset(i * 4.dp.roundToPx(), i * 3.dp.roundToPx()) }.graphicsLayer { rotationZ = (i - 1) * 8f })
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.widthIn(max = 180.dp)) {
+                Text(Format.items(content.entries.size), style = MaterialTheme.typography.labelLarge)
+                Text(if (content.cut) "Déplacer ici" else "Copier ici", style = MaterialTheme.typography.labelSmall)
+            }
+            Spacer(Modifier.width(8.dp))
+            TextButton(onClick = onCancel) { Text("Annuler", color = MaterialTheme.colorScheme.inversePrimary) }
+            androidx.compose.material3.Button(onClick = onPaste, shapes = androidx.compose.material3.ButtonDefaults.shapes()) {
+                Icon(if (content.cut) Icons.AutoMirrored.Rounded.DriveFileMove else Icons.Rounded.ContentPaste, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Coller")
+            }
+        }
+    }
+}
+
+@Composable
+private fun PickerBar(count: Int, onChoose: () -> Unit) {
+    androidx.compose.material3.Button(onClick = onChoose, enabled = count > 0, modifier = Modifier.height(56.dp)) {
+        Icon(Icons.Rounded.Check, null)
+        Spacer(Modifier.width(8.dp))
+        Text("Choisir ($count)")
+    }
+}
+
+@Composable
+private fun NewItemFab(visible: Boolean, onNewFolder: () -> Unit, onNewFile: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    FloatingActionButtonMenu(
+        expanded = expanded,
+        modifier = Modifier.padding(bottom = 72.dp),
+        button = {
+            ToggleFloatingActionButton(
+                checked = expanded,
+                onCheckedChange = { expanded = it },
+                modifier = Modifier.semantics { contentDescription = "Créer" }.animateFloatingActionButton(visible, Alignment.BottomEnd),
+            ) {
+                val icon = if (checkedProgress > 0.5f) Icons.Rounded.Close else Icons.Rounded.Add
+                Icon(icon, null, Modifier.animateIcon({ checkedProgress }))
+            }
+        },
+    ) {
+        FloatingActionButtonMenuItem(onClick = { expanded = false; onNewFolder() }, icon = { Icon(Icons.Rounded.CreateNewFolder, null) }, text = { Text("Nouveau dossier") })
+        FloatingActionButtonMenuItem(onClick = { expanded = false; onNewFile() }, icon = { Icon(Icons.Rounded.NoteAdd, null) }, text = { Text("Nouveau fichier") })
+    }
+}
+
+@Composable
+private fun DeleteDialog(entries: List<FileEntry>, trashEnabled: Boolean, onDismiss: () -> Unit, onConfirm: (Boolean) -> Unit) {
+    var permanent by remember { mutableStateOf(!trashEnabled) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Renommer") },
+        icon = { Icon(Icons.Rounded.Delete, null) },
+        title = { Text(if (entries.size == 1) "Supprimer « ${entries[0].name} » ?" else "Supprimer ${entries.size} éléments ?") },
         text = {
-            OutlinedTextField(
-                value = value,
-                onValueChange = { value = it },
-                singleLine = true
-            )
+            Column {
+                Text(if (permanent) "Ils seront supprimés définitivement." else "Ils iront dans la corbeille, restaurables pendant le délai choisi.")
+                if (trashEnabled) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(permanent, onCheckedChange = { permanent = it })
+                    Text("Supprimer définitivement")
+                }
+            }
         },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(value) }, enabled = value.isNotBlank()) { Text("Renommer") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Annuler") }
-        }
+        confirmButton = { TextButton(onClick = { onConfirm(permanent) }) { Text("Supprimer") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
     )
 }
 
 @Composable
-private fun SelectionActionBar(
-    count: Int,
-    onCopy: () -> Unit,
-    onCut: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
-    onSelectAll: () -> Unit,
-    onInvert: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        Text("$count", style = MaterialTheme.typography.titleMedium)
-        ActionIcon(Icons.Outlined.ContentCopy, "Copier", onCopy)
-        ActionIcon(Icons.Outlined.ContentCut, "Couper", onCut)
-        ActionIcon(Icons.Outlined.DriveFileRenameOutline, "Renommer", onRename)
-        ActionIcon(Icons.Outlined.Delete, "Supprimer", onDelete)
-        ActionIcon(Icons.Outlined.SelectAll, "Tout sélectionner", onSelectAll)
-        ActionIcon(Icons.Outlined.Check, "Inverser", onInvert)
-    }
-}
-
-@Composable
-private fun PasteBar(onPaste: () -> Unit, onClear: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            Icons.Outlined.ContentPaste,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(Modifier.width(12.dp))
-        Text("Éléments prêts à coller", modifier = Modifier.weight(1f))
-        TextButton(onClick = onClear) { Text("Effacer") }
-        TextButton(onClick = onPaste) { Text("Coller") }
-    }
-}
-
-@Composable
-private fun ActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
-        Icon(icon, contentDescription = label)
-    }
-}
-
-@Composable
-private fun Breadcrumb(path: String, onOpenFolder: (String) -> Unit) {
-    val segments = path.split('/').filter { it.isNotBlank() }
-    Row(
-        modifier = Modifier
-            .horizontalScroll(rememberScrollState()),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            "Fichio",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.clickableX { onOpenFolder("/storage/emulated/0") }
-        )
-        var cumulative = ""
-        segments.forEach { segment ->
-            cumulative += "/$segment"
-            Text(" / ", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(
-                segment,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (cumulative == path) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                modifier = Modifier.clickableX { onOpenFolder(cumulative) }
-            )
-        }
-    }
-}
-
-@Composable
-private fun Modifier.clickableX(onClick: () -> Unit): Modifier =
-    this.clip(MaterialTheme.shapes.small).clickable(onClick = onClick)
-
-@Composable
-private fun ViewToggleRow(viewMode: ViewMode, onSelect: (ViewMode) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        ViewToggleButton(Icons.Outlined.List, selected = viewMode == ViewMode.LIST) { onSelect(ViewMode.LIST) }
-        ViewToggleButton(Icons.Outlined.GridView, selected = viewMode == ViewMode.GRID) { onSelect(ViewMode.GRID) }
-        ViewToggleButton(Icons.Outlined.PhotoLibrary, selected = viewMode == ViewMode.LARGE) { onSelect(ViewMode.LARGE) }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun ViewToggleButton(icon: androidx.compose.ui.graphics.vector.ImageVector, selected: Boolean, onClick: () -> Unit) {
+private fun DragGhost(drag: PaneDragState) {
+    val density = LocalDensity.current
+    val first = drag.entries.firstOrNull() ?: return
+    val scale by animateFloatAsState(if (drag.hovered != null) 0.85f else 1.08f, bouncy(), label = "ghost")
     Box(
-        modifier = Modifier
-            .padding(4.dp)
-            .clip(CircleShape)
-            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
-            .combinedClickable(onClick = onClick)
-            .padding(6.dp),
-        contentAlignment = Alignment.Center
+        Modifier
+            .offset { IntOffset((drag.position.x - with(density) { 32.dp.toPx() }).toInt(), (drag.position.y - with(density) { 32.dp.toPx() }).toInt() - 120) }
+            .graphicsLayer { scaleX = scale; scaleY = scale; rotationZ = -6f },
     ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
-        )
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun FileList(
-    items: List<FileItem>,
-    selection: Set<String>,
-    onToggle: (FileItem) -> Unit,
-    onOpenFolder: (String) -> Unit,
-    onOpenFile: (FileItem) -> Unit
-) {
-    LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
-        items(items, key = { it.path }) { item ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(if (item.path in selection) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface)
-                    .combinedClickable(
-                        onClick = {
-                            if (selection.isNotEmpty()) onToggle(item)
-                            else if (item.isDirectory) onOpenFolder(item.path) else onOpenFile(item)
-                        },
-                        onLongClick = { onToggle(item) }
-                    )
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                FileTypeIcon(item.isDirectory, item.extension, size = 22.dp)
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(item.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        if (item.isDirectory) "Dossier" else "${formatBytes(item.sizeBytes)} · ${formatDate(item.modifiedAt)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                if (selection.isNotEmpty()) {
-                    SelectionDot(selected = item.path in selection)
-                }
+        Surface(shape = RoundedCornerShape(20.dp), shadowElevation = 12.dp) {
+            Box(Modifier.padding(6.dp)) {
+                FileThumbnail(first, size = 56.dp)
+                if (drag.entries.size > 1) Surface(
+                    shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.align(Alignment.TopEnd).offset(8.dp, (-8).dp),
+                ) { Text("${drag.entries.size}", Modifier.padding(horizontal = 7.dp, vertical = 2.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimary) }
             }
         }
     }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun FileGrid(
-    items: List<FileItem>,
-    selection: Set<String>,
-    large: Boolean,
-    onToggle: (FileItem) -> Unit,
-    onOpenFolder: (String) -> Unit,
-    onOpenFile: (FileItem) -> Unit
-) {
-    val columns = if (large) 2 else 3
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(columns),
-        contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(items, key = { it.path }) { item ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        if (item.path in selection) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
-                    )
-                    .combinedClickable(
-                        onClick = {
-                            if (selection.isNotEmpty()) onToggle(item)
-                            else if (item.isDirectory) onOpenFolder(item.path) else onOpenFile(item)
-                        },
-                        onLongClick = { onToggle(item) }
-                    )
-            ) {
-                Box {
-                    FileThumbnail(
-                        file = item.file,
-                        isDirectory = item.isDirectory,
-                        extension = item.extension,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(1f),
-                        cornerRadius = 16.dp
-                    )
-                    if (selection.isNotEmpty()) {
-                        SelectionDot(
-                            selected = item.path in selection,
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(6.dp)
-                        )
-                    }
-                }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    item.name,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = if (large) 2 else 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(2.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun SelectionDot(selected: Boolean, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .size(22.dp)
-            .clip(CircleShape)
-            .background(
-                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (selected) {
-            Icon(Icons.Outlined.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
-        }
-    }
-}
-
-private fun sortLabel(mode: SortMode): String = when (mode) {
-    SortMode.NAME -> "Nom"
-    SortMode.DATE -> "Date"
-    SortMode.SIZE -> "Taille"
-    SortMode.TYPE -> "Type"
 }

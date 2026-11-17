@@ -1,228 +1,137 @@
 package com.karelisio.fichio.ui.browser
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import android.app.Application
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
-import com.karelisio.fichio.FichioApp
-import com.karelisio.fichio.data.db.FolderSettingsEntity
-import com.karelisio.fichio.data.db.SortMode
-import com.karelisio.fichio.data.db.ViewMode
-import com.karelisio.fichio.domain.file.FileItem
-import com.karelisio.fichio.domain.file.FileSorter
-import com.karelisio.fichio.domain.operations.Clipboard
-import com.karelisio.fichio.domain.operations.OperationKind
-import com.karelisio.fichio.domain.operations.UndoStack
-import com.karelisio.fichio.service.FileOperationService
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.karelisio.fichio.container
+import com.karelisio.fichio.core.fs.StoragePaths
+import com.karelisio.fichio.data.db.TabEntity
+import com.karelisio.fichio.data.prefs.FichioSettings
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.io.File
+import kotlinx.coroutines.withContext
 
-class BrowserViewModel(private val app: FichioApp, val path: String) : ViewModel() {
+const val MAX_TABS = 5
 
-    private val container = app.container
+/** Holds the tabs (each a [PaneState]) and the secondary pane of the landscape dual view. */
+class BrowserViewModel(app: Application) : AndroidViewModel(app) {
+    private val c = app.container
+    private val db = c.database
 
-    private val _items = MutableStateFlow<List<FileItem>>(emptyList())
-    val items: StateFlow<List<FileItem>> = _items.asStateFlow()
+    val settings: StateFlow<FichioSettings> = c.settings.settings.stateIn(viewModelScope, SharingStarted.Eagerly, FichioSettings())
+    val favorites = c.favorites.favorites.map { list -> list.map { it.path }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    val volumes = c.volumes.volumes
 
-    private val _isLoading = MutableStateFlow(true)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    val tabs = mutableStateListOf<PaneState>()
+    var selectedTab by mutableIntStateOf(0)
+        private set
 
-    var viewMode = MutableStateFlow(ViewMode.LIST)
-    var sortMode = MutableStateFlow(SortMode.NAME)
-    var sortAscending = MutableStateFlow(true)
-    var foldersFirst = MutableStateFlow(true)
-    var showHidden = MutableStateFlow(false)
+    /** Right pane in dual mode (independent from tabs). */
+    var secondary: PaneState? by mutableStateOf(null)
+        private set
 
-    private val _selection = MutableStateFlow<Set<String>>(emptySet())
-    val selection: StateFlow<Set<String>> = _selection.asStateFlow()
+    /** Which pane receives actions in dual mode: 0 = main (tab), 1 = secondary. */
+    var activePane by mutableIntStateOf(0)
 
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    private var nextId = 1L
+    private var restored = false
 
-    private val _clipboard = MutableStateFlow(Clipboard.hasItems)
-    val clipboard: StateFlow<Boolean> = _clipboard.asStateFlow()
+    val current: PaneState? get() = tabs.getOrNull(selectedTab)
 
-    private val _undoMessage = MutableStateFlow<String?>(null)
-    val undoMessage: StateFlow<String?> = _undoMessage.asStateFlow()
+    fun activeState(dual: Boolean): PaneState? = if (dual && activePane == 1) secondary ?: current else current
 
-    init {
+    private fun newPane(path: String) = PaneState(nextId++, path, viewModelScope, c.fileSystems, db.folderSettings()) { settings.value }
+
+    /** Restores persisted tabs, then applies the requested path (shortcut, home tile…). */
+    fun init(initialPath: String?, newTab: Boolean) {
+        if (restored) {
+            if (initialPath != null) openPath(initialPath, newTab)
+            return
+        }
+        restored = true
         viewModelScope.launch {
-            container.database.folderSettingsDao().get(path)?.let { s ->
-                viewMode.value = s.viewMode
-                sortMode.value = s.sortMode
-                sortAscending.value = s.sortAscending
-                foldersFirst.value = s.foldersFirst
-                showHidden.value = s.showHidden
+            val saved = withContext(Dispatchers.IO) { runCatching { db.tabs().all() }.getOrDefault(emptyList()) }
+            if (saved.isNotEmpty() && initialPath == null) {
+                saved.take(MAX_TABS).forEach { tabs += newPane(it.path) }
+                selectedTab = saved.indexOfFirst { it.selected }.coerceAtLeast(0).coerceAtMost(tabs.lastIndex)
+            } else if (saved.isNotEmpty() && newTab) {
+                saved.take(MAX_TABS - 1).forEach { tabs += newPane(it.path) }
+                tabs += newPane(initialPath!!)
+                selectedTab = tabs.lastIndex
+            } else {
+                tabs += newPane(initialPath ?: StoragePaths.primary)
+                selectedTab = 0
             }
-            load()
+            persist()
         }
-    }
-
-    fun load() {
         viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            runCatching { container.fileSystem.listDirectory(path, showHidden.value) }
-                .onSuccess { _items.value = applySort(it) }
-                .onFailure { _error.value = it.message }
-            _isLoading.value = false
+            settings.map { it.showHidden }.distinctUntilChanged().drop(1).collect {
+                (tabs + listOfNotNull(secondary)).forEach { it.refresh() }
+            }
         }
-    }
-
-    private fun applySort(items: List<FileItem>): List<FileItem> =
-        FileSorter.sort(items, sortMode.value, sortAscending.value, foldersFirst.value)
-
-    fun setViewMode(mode: ViewMode) {
-        viewMode.value = mode
-        persistSettings()
-    }
-
-    fun setSortMode(mode: SortMode) {
-        sortMode.value = mode
-        _items.value = applySort(_items.value)
-        persistSettings()
-    }
-
-    fun toggleSortDirection() {
-        sortAscending.value = !sortAscending.value
-        _items.value = applySort(_items.value)
-        persistSettings()
-    }
-
-    fun toggleFoldersFirst() {
-        foldersFirst.value = !foldersFirst.value
-        _items.value = applySort(_items.value)
-        persistSettings()
-    }
-
-    fun toggleHidden() {
-        showHidden.value = !showHidden.value
-        persistSettings()
-        load()
-    }
-
-    private fun persistSettings() {
         viewModelScope.launch {
-            container.database.folderSettingsDao().upsert(
-                FolderSettingsEntity(
-                    path = path,
-                    viewMode = viewMode.value,
-                    sortMode = sortMode.value,
-                    sortAscending = sortAscending.value,
-                    foldersFirst = foldersFirst.value,
-                    showHidden = showHidden.value
-                )
-            )
-        }
-    }
-
-    fun toggleSelection(itemPath: String) {
-        _selection.value = _selection.value.let {
-            if (itemPath in it) it - itemPath else it + itemPath
-        }
-    }
-
-    fun clearSelection() {
-        _selection.value = emptySet()
-    }
-
-    fun selectAll() {
-        _selection.value = _items.value.map { it.path }.toSet()
-    }
-
-    fun invertSelection() {
-        val all = _items.value.map { it.path }.toSet()
-        _selection.value = all - _selection.value
-    }
-
-    fun isSelected(path: String): Boolean = path in _selection.value
-
-    fun copySelection() {
-        Clipboard.copy(_selection.value.toList())
-        _selection.value = emptySet()
-        _clipboard.value = true
-    }
-
-    fun cutSelection() {
-        Clipboard.cut(_selection.value.toList())
-        _selection.value = emptySet()
-        _clipboard.value = true
-    }
-
-    fun paste() {
-        if (!Clipboard.hasItems) return
-        FileOperationService.enqueue(
-            app,
-            if (Clipboard.isCut) OperationKind.MOVE else OperationKind.COPY,
-            Clipboard.sources,
-            path
-        )
-        Clipboard.clear()
-        _clipboard.value = false
-        viewModelScope.launch {
-            kotlinx.coroutines.delay(1500)
-            load()
-        }
-    }
-
-    fun deleteSelection() {
-        val paths = _selection.value.toList()
-        _selection.value = emptySet()
-        viewModelScope.launch {
-            val trashed = container.trashManager.moveToTrash(paths.map(::File))
-            if (trashed.isNotEmpty()) {
-                UndoStack.offer("${trashed.size} élément(s) déplacé(s) vers la corbeille") {
-                    container.trashManager.restore(trashed)
+            c.fileSystems.changes.collect { change ->
+                (tabs + listOfNotNull(secondary)).forEach { pane ->
+                    if (change.affects(pane.path)) pane.refresh()
                 }
-                _undoMessage.value = "${trashed.size} élément(s) déplacé(s) vers la corbeille"
-            }
-            load()
-        }
-    }
-
-    fun renameItem(itemPath: String, newName: String) {
-        viewModelScope.launch {
-            val from = File(itemPath)
-            val to = File(from.parentFile ?: return@launch, newName)
-            val ok = container.fileSystem.rename(from.absolutePath, to.absolutePath)
-            if (ok) {
-                UndoStack.offer("Renommé") {
-                    container.fileSystem.rename(to.absolutePath, from.absolutePath)
-                }
-                _undoMessage.value = "Renommé"
-                load()
             }
         }
     }
 
-    fun undo() {
-        viewModelScope.launch {
-            UndoStack.undo()
-            _undoMessage.value = null
-            load()
+    fun openPath(path: String, inNewTab: Boolean) {
+        if (inNewTab && tabs.size < MAX_TABS) {
+            tabs += newPane(path); selectedTab = tabs.lastIndex
+        } else {
+            current?.open(path) ?: run { tabs += newPane(path); selectedTab = 0 }
+        }
+        persist()
+    }
+
+    fun addTab(path: String = current?.path ?: StoragePaths.primary): Boolean {
+        if (tabs.size >= MAX_TABS) return false
+        tabs += newPane(path)
+        selectedTab = tabs.lastIndex
+        persist()
+        return true
+    }
+
+    fun closeTab(index: Int) {
+        if (tabs.size <= 1 || index !in tabs.indices) return
+        tabs.removeAt(index)
+        selectedTab = selectedTab.coerceAtMost(tabs.lastIndex).let { if (index < it) it - 1 else it }.coerceAtLeast(0)
+        persist()
+    }
+
+    fun selectTab(index: Int) {
+        if (index in tabs.indices) { selectedTab = index; activePane = 0; persist() }
+    }
+
+    fun ensureSecondary() {
+        if (secondary == null) {
+            val other = tabs.getOrNull(if (selectedTab == 0) 1 else 0)?.path ?: StoragePaths.downloads
+            secondary = newPane(other)
         }
     }
 
-    fun clearClipboard() {
-        Clipboard.clear()
-        _clipboard.value = false
+    /** Persist tabs (paths only) so they come back at next launch. */
+    fun persist() {
+        val snapshot = tabs.mapIndexed { i, p -> TabEntity(p.id, p.path, i, i == selectedTab) }
+        viewModelScope.launch(Dispatchers.IO) { runCatching { db.tabs().replaceAll(snapshot) } }
     }
 
-    fun dismissUndo() {
-        _undoMessage.value = null
-    }
-
-    companion object {
-        fun factory(path: String): ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                val app = this[APPLICATION_KEY] as FichioApp
-                BrowserViewModel(app, path)
-            }
-        }
-    }
+    fun toggleFavorite(path: String) = viewModelScope.launch { c.favorites.toggle(path) }
+    fun pin(path: String) = viewModelScope.launch { c.favorites.pin(path) }
+    fun setShowHidden(v: Boolean) = viewModelScope.launch { c.settings.setShowHidden(v) }
 }

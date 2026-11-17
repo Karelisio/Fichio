@@ -1,94 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Fichio</string>
-    <string name="widget_name">Fichio</string>
-
-    <!-- Home -->
-    <string name="home">Accueil</string>
-    <string name="storage">Stockage</string>
-    <string name="free_space">libre</string>
-    <string name="used_space">utilisé</string>
-    <string name="categories">Catégories</string>
-    <string name="recent_files">Fichiers récents</string>
-    <string name="favorites">Favoris</string>
-    <string name="internal_storage">Stockage interne</string>
-    <string name="usb_otg">Clé USB OTG</string>
-    <string name="android_data">Android/data</string>
-    <string name="android_obb">Android/obb</string>
-    <string name="trash">Corbeille</string>
-
-    <!-- Categories -->
-    <string name="cat_images">Images</string>
-    <string name="cat_videos">Vidéos</string>
-    <string name="cat_audio">Audio</string>
-    <string name="cat_documents">Documents</string>
-    <string name="cat_apk">APK</string>
-    <string name="cat_archives">Archives</string>
-    <string name="cat_downloads">Téléchargements</string>
-
-    <!-- Browser -->
-    <string name="new_folder">Nouveau dossier</string>
-    <string name="new_file">Nouveau fichier</string>
-    <string name="rename">Renommer</string>
-    <string name="delete">Supprimer</string>
-    <string name="copy">Copier</string>
-    <string name="cut">Couper</string>
-    <string name="paste">Coller</string>
-    <string name="properties">Propriétés</string>
-    <string name="select_all">Tout sélectionner</string>
-    <string name="invert_selection">Inverser la sélection</string>
-    <string name="sort_by">Trier par</string>
-    <string name="sort_name">Nom</string>
-    <string name="sort_date">Date</string>
-    <string name="sort_size">Taille</string>
-    <string name="sort_type">Type</string>
-    <string name="folders_first">Dossiers en premier</string>
-    <string name="show_hidden">Afficher les fichiers cachés</string>
-    <string name="view_list">Liste</string>
-    <string name="view_grid">Grille</string>
-    <string name="view_large">Grandes miniatures</string>
-    <string name="empty_folder">Dossier vide</string>
-    <string name="no_files">Aucun fichier</string>
-
-    <!-- Actions -->
-    <string name="undo">Annuler</string>
-    <string name="open_with">Ouvrir avec</string>
-    <string name="open_in_polaro">Ouvrir dans Polaro</string>
-    <string name="add_to_favorites">Ajouter aux favoris</string>
-    <string name="remove_from_favorites">Retirer des favoris</string>
-    <string name="pin_folder">Épingler le dossier</string>
-    <string name="unpin_folder">Désépingler le dossier</string>
-
-    <!-- Permissions -->
-    <string name="permission_required">Autorisation requise</string>
-    <string name="grant_access">Autoriser</string>
-    <string name="retry">Réessayer</string>
-    <string name="storage_permission_title">Accès à tous les fichiers</string>
-    <string name="storage_permission_desc">Fichio a besoin d\'accéder à tous vos fichiers pour les gérer.</string>
-    <string name="notification_permission_title">Notifications</string>
-    <string name="notification_permission_desc">Pour suivre la progression de vos opérations.</string>
-    <string name="shizuku_permission_title">Shevery / Shizuku</string>
-    <string name="shizuku_permission_desc">Pour accéder à Android/data et Android/obb (facultatif).</string>
-    <string name="shizuku_not_running">Shevery n\'est pas actif. Le reste de Fichio fonctionne normalement.</string>
-    <string name="install_permission_title">Installer des applications</string>
-    <string name="install_permission_desc">Pour installer des APK et les mises à jour de Fichio.</string>
-    <string name="battery_permission_title">Optimisation de la batterie</string>
-    <string name="battery_permission_desc">Pour terminer les longues opérations et vider la corbeille.</string>
-
-    <!-- Transfer -->
-    <string name="transfer_server">Transfert local</string>
-    <string name="start_server">Démarrer le serveur</string>
-    <string name="stop_server">Arrêter le serveur</string>
-    <string name="access_code">Code d\'accès</string>
-
-    <!-- Update -->
-    <string name="update_available">Mise à jour disponible</string>
-    <string name="checking_update">Vérification des mises à jour…</string>
-    <string name="download">Télécharger</string>
-
-    <string name="cancel">Annuler</string>
-    <string name="ok">OK</string>
-    <string name="confirm">Confirmer</string>
-    <string name="settings">Réglages</string>
-    <string name="search">Rechercher</string>
+    <string name="widget_name">Fichio — espace et favoris</string>
+    <string name="widget_description">Espace libre et dossiers favoris</string>
+    <string name="shortcut_storage">Stockage interne</string>
+    <string name="shortcut_downloads">Téléchargements</string>
+    <string name="shortcut_search">Rechercher</string>
+    <string name="shortcut_trash">Corbeille</string>
+    <string name="channel_operations">Opérations sur les fichiers</string>
+    <string name="channel_transfer">Transfert local</string>
+    <string name="channel_updates">Mises à jour</string>
 </resources>

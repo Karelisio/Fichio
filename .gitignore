@@ -10,7 +10,6 @@ local.properties
 *.keystore
 *.jks
 !debug.keystore
-/app/schemas/
 captures/
 
 # IDE
@@ -26,3 +25,4 @@ secrets.properties
 
 # Misc
 *.log
+.claude/worktrees/

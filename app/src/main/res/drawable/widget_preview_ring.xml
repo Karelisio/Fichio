@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static ring used by the widget picker preview. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp" android:height="64dp"
+    android:viewportWidth="64" android:viewportHeight="64">
+    <path android:strokeColor="@color/widget_chip" android:strokeWidth="8"
+        android:pathData="M32,6a26,26 0,1 1,0 52a26,26 0,1 1,0 -52" />
+    <path android:strokeColor="@color/widget_primary" android:strokeWidth="8" android:strokeLineCap="round"
+        android:pathData="M32,6A26,26 0,1 1,8.1 42.2" />
+</vector>

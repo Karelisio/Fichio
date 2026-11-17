@@ -1,48 +1,46 @@
 package com.karelisio.fichio.data.db
 
+import android.content.Context
 import androidx.room.Database
+import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverter
-import androidx.room.TypeConverters
-
-class Converters {
-    @TypeConverter
-    fun viewModeToInt(mode: ViewMode): Int = mode.ordinal
-
-    @TypeConverter
-    fun intToViewMode(value: Int): ViewMode = ViewMode.entries[value]
-
-    @TypeConverter
-    fun sortModeToInt(mode: SortMode): Int = mode.ordinal
-
-    @TypeConverter
-    fun intToSortMode(value: Int): SortMode = SortMode.entries[value]
-}
 
 @Database(
     entities = [
         FavoriteEntity::class,
-        PinnedFolderEntity::class,
-        OpenTabEntity::class,
-        TrashItemEntity::class,
-        SearchIndexEntity::class,
+        PinnedEntity::class,
+        TabEntity::class,
         FolderSettingsEntity::class,
-        TransferLogEntity::class
+        TrashEntity::class,
+        FileIndexEntity::class,
+        FileIndexFts::class,
+        TransferLogEntity::class,
+        RecentEntity::class,
     ],
     version = 1,
-    exportSchema = false
+    exportSchema = true,
 )
-@TypeConverters(Converters::class)
 abstract class FichioDatabase : RoomDatabase() {
-    abstract fun favoriteDao(): FavoriteDao
-    abstract fun pinnedDao(): PinnedDao
-    abstract fun tabDao(): TabDao
-    abstract fun trashDao(): TrashDao
-    abstract fun searchDao(): SearchDao
-    abstract fun folderSettingsDao(): FolderSettingsDao
-    abstract fun transferDao(): TransferDao
+    abstract fun favorites(): FavoriteDao
+    abstract fun pinned(): PinnedDao
+    abstract fun tabs(): TabDao
+    abstract fun folderSettings(): FolderSettingsDao
+    abstract fun trash(): TrashDao
+    abstract fun fileIndex(): FileIndexDao
+    abstract fun transferLog(): TransferLogDao
+    abstract fun recents(): RecentDao
 
     companion object {
         const val NAME = "fichio.db"
+
+        fun build(context: Context): FichioDatabase =
+            Room.databaseBuilder(context.applicationContext, FichioDatabase::class.java, NAME)
+                .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
+                .build()
+
+        fun inMemory(context: Context): FichioDatabase =
+            Room.inMemoryDatabaseBuilder(context.applicationContext, FichioDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
     }
 }

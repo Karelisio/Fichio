@@ -1,26 +1,36 @@
 # Changelog
 
-All notable changes to Fichio are documented in this file.
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Toutes les évolutions notables de Fichio sont listées ici.
+Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
-## [0.1.1] - unreleased
+## [0.2.0] - 2026-11-18
 
-### Fixed
-- Fixed an instant crash on launch caused by a circular initialization in the trash manager (the app closed before showing any UI).
+Refonte complète de l'appli.
+
+### Nouveautés
+- Material 3 Expressive partout : couleurs dynamiques (repli bleu ardoise), formes MaterialShapes, typographie expressive, splash animé, nouvelle icône adaptative avec version monochrome.
+- Accueil : jauge d'espace vivante (segments par type qui se réorganisent au ressort et changent de forme), accès rapide (stockage, USB, Android/data, Android/obb, corbeille, applis, transfert), catégories, récents en carrousel, favoris réordonnables, épinglés.
+- Navigateur : onglets (jusqu'à 5), double volet en paysage avec glisser-déposer, vues liste / grille / grandes miniatures par dossier, tri naturel, fichiers cachés, défilement rapide, sélection par glissement, animation « tiroir » pilotée par le retour prédictif, animation « fichier volant » au copier/déplacer.
+- Opérations en arrière-plan avec file d'attente, pause, annulation, conflits et notification ProgressStyle (Android 16) ; annulation de la dernière opération ; renommage en lot avec aperçu ; corbeille avec vidage automatique.
+- Recherche instantanée sur index local (Room FTS) avec filtres.
+- Aperçus : images, vidéo, audio avec mini-lecteur, PDF, texte et code avec coloration ; éditeur de texte ; Fichio peut servir de sélecteur de fichiers.
+- Archives (zip, 7z, rar, tar, gz) et APK (infos, installation, extraction des applis installées).
+- Android/data et Android/obb via Shevery.
+- Analyse du stockage (carte en soleil, gros fichiers, doublons, anciens fichiers, dossiers vides).
+- Transfert local par Wi-Fi avec QR code et code à usage unique.
+- Widget Glance, raccourcis d'appli et de dossiers.
+- Onboarding animé avec une page par autorisation, écran Autorisations dans les réglages.
+- Mise à jour in-app depuis les GitHub Releases.
+
+### Technique
+- Kotlin 2.4, AGP 9.5, compileSdk 37, minSdk 30.
+
+## [0.1.1] - 2026-11-17
+
+### Corrigé
+- Plantage immédiat au lancement causé par une initialisation circulaire de la corbeille.
 
 ## [0.1.0] - 2026-11-17
 
-### Added
-- Home dashboard with animated space gauge, categories, recent files and favorites.
-- File browser with breadcrumb navigation, list/grid/large-thumbnail views, sorting and thumbnails.
-- Basic file operations (copy, move, rename, delete, create, properties) with undo.
-- Trash with Room metadata, restore and 30-day auto-purge.
-- Full-text search index (Room FTS) updated in the background.
-- Image/video/audio/text previews and a small text editor.
-- Archive support (zip, 7z, rar, tar, gz) and APK inspection/installation/extraction.
-- Android/data & Android/obb access via Shevery (Shizuku fork) UserService.
-- Storage analysis (folder sunburst, large files, duplicates, old/empty folders).
-- Local HTTP transfer server with QR code and one-time access token.
-- Glance widget and app shortcuts.
-- Onboarding + permissions wizard.
-- In-app update from GitHub Releases.
+### Ajouté
+- Première version.
