@@ -10,7 +10,6 @@ local.properties
 *.keystore
 *.jks
 !debug.keystore
-/app/schemas/
 captures/
 
 # IDE

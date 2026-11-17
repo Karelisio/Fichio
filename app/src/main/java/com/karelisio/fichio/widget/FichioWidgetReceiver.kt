@@ -1,8 +1,6 @@
 package com.karelisio.fichio.widget
 
-import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import android.appwidget.AppWidgetProvider
 
-class FichioWidgetReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget: GlanceAppWidget = FichioWidget()
-}
+/** Glance widget receiver. CONTRACT STUB. */
+class FichioWidgetReceiver : AppWidgetProvider()

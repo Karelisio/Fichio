@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ic_launcher_foreground">
+    <target android:name="leaf">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="scaleX" android:duration="560" android:startOffset="80"
+                    android:valueFrom="0" android:valueTo="1" android:interpolator="@android:anim/overshoot_interpolator" />
+                <objectAnimator android:propertyName="scaleY" android:duration="560" android:startOffset="80"
+                    android:valueFrom="0" android:valueTo="1" android:interpolator="@android:anim/overshoot_interpolator" />
+                <objectAnimator android:propertyName="rotation" android:duration="640" android:startOffset="80"
+                    android:valueFrom="-35" android:valueTo="0" android:interpolator="@android:anim/overshoot_interpolator" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="front">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="translateY" android:duration="500"
+                android:valueFrom="14" android:valueTo="0" android:interpolator="@android:anim/decelerate_interpolator" />
+        </aapt:attr>
+    </target>
+</animated-vector>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_background">#2C4770</color>
+    <color name="ic_folder_back">#8DB0E6</color>
+    <color name="ic_folder_front">#DCE7FF</color>
+    <color name="ic_leaf">#8FD3A4</color>
+    <color name="ic_leaf_vein">#4E9A68</color>
+    <color name="splash_background">#F9F9FF</color>
+    <color name="splash_background_night">#111318</color>
+</resources>
