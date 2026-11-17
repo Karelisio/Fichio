@@ -108,7 +108,9 @@ object PermissionsCatalog {
 
     fun spec(id: PermissionId): PermissionSpec = all.first { it.id == id }
 
-    fun isGranted(context: Context, id: PermissionId): Boolean = when (id) {
+    fun isGranted(context: Context, id: PermissionId): Boolean = runCatching { checkGranted(context, id) }.getOrDefault(false)
+
+    private fun checkGranted(context: Context, id: PermissionId): Boolean = when (id) {
         PermissionId.ALL_FILES -> Environment.isExternalStorageManager()
         PermissionId.NOTIFICATIONS -> Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
