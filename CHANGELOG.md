@@ -3,6 +3,11 @@
 Toutes les évolutions notables de Fichio sont listées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [0.2.3] - 2026-11-18
+
+### Corrigé
+- Dans les grands dossiers, glisser pour défiler déclenchait le défilement rapide : la zone de la barre latérale couvrait tout l'écran. Elle est désormais limitée au bord droit et n'apparaît que pendant le défilement.
+
 ## [0.2.2] - 2026-11-18
 
 ### Corrigé

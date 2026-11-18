@@ -35,6 +35,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -542,17 +544,31 @@ private fun FastScroller(
     var fraction by remember { mutableFloatStateOf(0f) }
     var height by remember { mutableStateOf(1) }
     val scope = rememberCoroutineScope()
+    // Shown only while the list scrolls (or while dragging the thumb); hidden, it lets every
+    // touch through to the list so normal scrolling is never captured.
+    var lastScroll by remember { mutableStateOf(0L) }
+    var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        snapshotFlow { firstVisible() }.collect { if (!dragging) fraction = it.toFloat() / (count - 1).coerceAtLeast(1) }
+        var first = true
+        snapshotFlow { firstVisible() }.collect {
+            if (!dragging) fraction = it.toFloat() / (count - 1).coerceAtLeast(1)
+            if (!first) { lastScroll = System.currentTimeMillis(); visible = true }
+            first = false
+        }
     }
+    LaunchedEffect(lastScroll, dragging) {
+        if (!dragging) { delay(1500); visible = false }
+    }
+    val alpha by androidx.compose.animation.core.animateFloatAsState(if (visible || dragging) 1f else 0f, label = "scroller")
     val thumbH = with(LocalDensity.current) { 48.dp.toPx() }
     Box(
         modifier
-            .fillMaxSize()
+            .fillMaxHeight()
+            .width(28.dp)
             .padding(vertical = 96.dp)
-            .width(36.dp)
             .onGloballyPositioned { height = it.size.height }
-            .pointerInput(count) {
+            .graphicsLayer { this.alpha = alpha }
+            .then(if (!(visible || dragging)) Modifier else Modifier.pointerInput(count) {
                 detectVerticalDragGestures(
                     onDragStart = { o -> dragging = true; fraction = (o.y / height).coerceIn(0f, 1f) },
                     onDragEnd = { dragging = false },
@@ -563,7 +579,7 @@ private fun FastScroller(
                     val idx = (fraction * (count - 1)).toInt()
                     scope.launch { scrollTo(idx) }
                 }
-            },
+            }),
     ) {
         val y = (fraction * (height - thumbH)).coerceAtLeast(0f)
         Box(
