@@ -21,17 +21,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
@@ -42,7 +43,9 @@ import kotlin.coroutines.cancellation.CancellationException
  * Queue of long-running file operations (copy, move, trash, delete, custom tasks), executed
  * in a foreground service with pause / cancel / conflict resolution.
  *
- * Jobs run one at a time (FIFO); the following ones wait as QUEUED.
+ * Up to [concurrency] jobs run at the same time (« Opérations simultanées », 1–3, read live);
+ * the following ones wait as QUEUED, in FIFO order. Conflicts stay serialized: one dialog at a
+ * time, the other jobs that hit one wait for their turn.
  */
 class OperationManager(
     private val context: Context,
@@ -50,6 +53,7 @@ class OperationManager(
     private val trash: TrashRepository,
     val undo: UndoManager,
     private val scope: CoroutineScope,
+    concurrency: Flow<Int> = flowOf(1),
 ) : UndoExecutor {
     private val _jobs = MutableStateFlow<List<Job>>(emptyList())
     val jobs: StateFlow<List<Job>> = _jobs
@@ -64,13 +68,19 @@ class OperationManager(
 
     private val ids = AtomicLong(0)
     private val records = ConcurrentHashMap<Long, Record>()
-    private val queue = Semaphore(1)
+    private val queue = DynamicSemaphore(1)
     private val conflictMutex = Mutex()
     @Volatile private var pendingConflict: CompletableDeferred<ConflictAnswer>? = null
 
     init {
         undo.bind(this)
+        scope.launch {
+            runCatching { concurrency.distinctUntilChanged().collect { queue.setLimit(it.coerceIn(1, 3)) } }
+        }
     }
+
+    /** Current number of jobs allowed to run at once. */
+    val parallelism: Int get() = queue.permits
 
     private class Record(val id: Long) {
         val paused = MutableStateFlow(false)

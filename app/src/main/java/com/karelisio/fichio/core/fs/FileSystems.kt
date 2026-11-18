@@ -9,7 +9,8 @@ import kotlinx.coroutines.withContext
 
 /**
  * Routes a path to the right backend: Android/data and Android/obb go through
- * Shevery (Shizuku UserService), everything else through java.io.
+ * Shevery (Shizuku UserService), removable volumes with a granted SAF tree through
+ * [SafBackend], everything else through java.io.
  *
  * Also broadcasts [changes] so that open listings, the search index and the home
  * screen refresh after any operation performed inside the app.
@@ -18,13 +19,15 @@ class FileSystems(
     val local: FileBackend = LocalBackend(),
     /** Returns the connected Shizuku backend, or null when Shevery isn't running/authorised. */
     private val shizukuProvider: () -> FileBackend? = { null },
+    /** SAF backend for paths of a removable volume whose tree was granted, null for java.io. */
+    private val safProvider: (String) -> FileBackend? = { null },
 ) {
     private val _changes = MutableSharedFlow<FsChange>(extraBufferCapacity = 64)
     val changes: SharedFlow<FsChange> = _changes.asSharedFlow()
 
     fun backendFor(path: String): FileBackend =
         if (StoragePaths.isRestricted(path)) shizukuProvider() ?: throw ShizukuUnavailableException()
-        else local
+        else safProvider(path) ?: local
 
     fun backendOrNull(path: String): FileBackend? = runCatching { backendFor(path) }.getOrNull()
 

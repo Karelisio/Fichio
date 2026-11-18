@@ -58,22 +58,49 @@ class AnalysisResult(
     val durationMs: Long,
     val totalFiles: Int,
     val totalBytes: Long,
-    /** Files >= [StorageAnalyzer.Config.largeMinBytes], biggest first (filtered by the threshold in the UI). */
-    val large: List<FileRef>,
-    /** Files older than [StorageAnalyzer.Config.oldMinAgeMs], biggest first (filtered by age + recents in the UI). */
-    val old: List<FileRef>,
+    /** Every file of at least [FilePool.floor] bytes: the lists below are computed from it on demand. */
+    val pool: FilePool,
+    /** Sizes of all scanned files, including the ones below the pool floor. */
+    val histogram: SizeHistogram,
     /** Top-most directories whose subtree contains no file. */
     val emptyDirs: List<String>,
+    /** Confirmed duplicate groups for files of at least [duplicatesFrom] bytes, most wasted first. */
     val duplicates: List<DuplicateGroup>,
+    val duplicatesFrom: Long,
+    /** Everything deleted since the scan (to filter results computed later, e.g. extra duplicates). */
+    val removed: Set<String> = emptySet(),
 ) {
+    /** Files of at least [minBytes], biggest first. */
+    fun large(minBytes: Long, accept: (String) -> Boolean = { true }, limit: Int = MAX_LIST): List<FileRef> =
+        pool.select(minBytes.coerceAtLeast(1), limit, accept = accept)
+
+    /** Files of at least [minBytes] not modified for [minAgeMs] (at scan time), biggest first. */
+    fun old(minBytes: Long, minAgeMs: Long, accept: (String) -> Boolean = { true }, limit: Int = MAX_LIST): List<FileRef> =
+        pool.select(minBytes.coerceAtLeast(1), limit, match = { _, m -> m > 0 && scannedAt - m >= minAgeMs }, accept = accept)
+
+    /** Duplicate groups of files of at least [minBytes] (complete when [minBytes] >= [duplicatesFrom]). */
+    fun duplicates(minBytes: Long): List<DuplicateGroup> = duplicates.filter { it.size >= minBytes }
+
+    private fun gone(p: String, set: Set<String>) = p in set || set.any { p.startsWith("$it/") }
+
+    /** Adds groups found for smaller files (sizes in [from, duplicatesFrom)). */
+    fun withDuplicates(extra: List<DuplicateGroup>, from: Long): AnalysisResult {
+        if (from >= duplicatesFrom) return this
+        val fresh = extra.mapNotNull { g ->
+            val left = g.files.filterNot { gone(it.path, removed) }
+            if (left.size >= 2) g.copy(files = left) else null
+        }
+        return AnalysisResult(
+            root, scannedAt, durationMs, totalFiles, totalBytes, pool, histogram, emptyDirs,
+            (duplicates + fresh).sortedByDescending { it.wasted }, from, removed,
+        )
+    }
+
     /** Copy without items that were just deleted (keeps the cached result in sync, no rescan). */
     fun removing(paths: Collection<String>): AnalysisResult {
         if (paths.isEmpty()) return this
         val set = paths.toHashSet()
-        fun gone(p: String) = p in set || set.any { p.startsWith("$it/") }
-        val sizes = HashMap<String, Long>()
-        (large.asSequence() + old.asSequence() + duplicates.asSequence().flatMap { it.files.asSequence() })
-            .filter { it.path in set }.forEach { sizes[it.path] = it.size }
+        val sizes = pool.sizesOf(set)
         val removedDirs = set.filterTo(HashSet()) { it !in sizes }
         val newRoot = root.minus(sizes, removedDirs) ?: root
         return AnalysisResult(
@@ -82,14 +109,21 @@ class AnalysisResult(
             durationMs = durationMs,
             totalFiles = newRoot.fileCount,
             totalBytes = newRoot.size,
-            large = large.filterNot { gone(it.path) },
-            old = old.filterNot { gone(it.path) },
-            emptyDirs = emptyDirs.filterNot { gone(it) },
+            pool = pool.without(sizes.keys, removedDirs),
+            histogram = histogram,
+            emptyDirs = emptyDirs.filterNot { gone(it, set) },
             duplicates = duplicates.mapNotNull { g ->
-                val left = g.files.filterNot { gone(it.path) }
+                val left = g.files.filterNot { gone(it.path, set) }
                 if (left.size >= 2) g.copy(files = left) else null
             },
+            duplicatesFrom = duplicatesFrom,
+            removed = removed + set,
         )
+    }
+
+    companion object {
+        /** Longest list shown by a tab. */
+        const val MAX_LIST = 5_000
     }
 }
 
@@ -131,11 +165,15 @@ class StorageAnalyzer(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(3),
 ) {
     data class Config(
-        val largeMinBytes: Long = 10L * 1024 * 1024,
-        val oldMinBytes: Long = 512L * 1024,
-        val oldMinAgeMs: Long = 30L * 24 * 3600 * 1000,
+        /**
+         * Smallest file kept in the [FilePool]: every threshold of the analysis screen (big, old,
+         * duplicates) can go down to it and is recomputed without rescanning.
+         */
+        val poolMinBytes: Long = POOL_MIN_BYTES,
+        /** Memory bound of the pool (~50 bytes per file); past it, the smallest files are dropped. */
+        val poolCap: Int = 400_000,
+        /** Duplicates are hashed during the scan from this size; smaller ones on demand. */
         val duplicateMinBytes: Long = 100L * 1024,
-        val maxCandidates: Int = 5_000,
         /** Top-level folders that apps/the system expect to exist even when empty. */
         val protectedEmpty: Set<String> = setOf(
             "alarms", "audiobooks", "dcim", "documents", "download", "movies", "music", "notifications",
@@ -156,11 +194,14 @@ class StorageAnalyzer(
     enum class Phase { SCANNING, DUPLICATES }
 
     /** Per-walker collectors (merged at the end, so no locking during the walk). */
-    private class Acc {
-        val large = ArrayList<FileRef>()
-        val old = ArrayList<FileRef>()
-        val dupCandidates = ArrayList<FileRef>()
+    private inner class Acc {
+        val pool = PoolBuilder(config.poolMinBytes, config.poolCap)
+        val histogram = SizeHistogram()
         val empty = ArrayList<String>()
+    }
+
+    companion object {
+        const val POOL_MIN_BYTES = 64L * 1024
     }
 
     suspend fun scan(
@@ -178,6 +219,7 @@ class StorageAnalyzer(
         val rootAcc = Acc()
         var rootFilesSize = 0L
         var rootFilesCount = 0
+        val rootDir = rootAcc.pool.addDir(root.trimEnd('/'))
         forEachEntry(rootPath) { p, a ->
             when {
                 a.isSymbolicLink -> Unit
@@ -185,7 +227,7 @@ class StorageAnalyzer(
                 a.isRegularFile -> {
                     val s = a.size()
                     rootFilesSize += s; rootFilesCount++
-                    collect(rootAcc, p.toString(), s, a.lastModifiedTime().toMillis(), progress)
+                    collect(rootAcc, rootDir, p, s, a.lastModifiedTime().toMillis(), progress)
                 }
             }
         }
@@ -208,11 +250,14 @@ class StorageAnalyzer(
         children.sortByDescending { it.size }
         val tree = DirNode(root, "Stockage interne", children.sumOf { it.size }, children.sumOf { it.fileCount }, children)
 
+        val pool = FilePool.merge(accs.map { it.pool }, config.poolCap)
+        val histogram = SizeHistogram().also { h -> accs.forEach { h.addAll(it.histogram) } }
+
         // Duplicates.
         progress.phase = Phase.DUPLICATES
-        val dupCandidates = accs.flatMap { it.dupCandidates }
+        val dupFrom = maxOf(config.duplicateMinBytes, pool.floor, 1)
         val duplicates = hashFinder(isActive).find(
-            dupCandidates,
+            pool.sameSizeCandidates(dupFrom),
             onProgress = { done, total -> progress.hashed = done; progress.hashTotal = total },
             isActive = isActive,
         )
@@ -224,16 +269,18 @@ class StorageAnalyzer(
             durationMs = System.currentTimeMillis() - started,
             totalFiles = tree.fileCount,
             totalBytes = tree.size,
-            large = accs.flatMap { it.large }.sortedByDescending { it.size }.take(config.maxCandidates),
-            old = accs.flatMap { it.old }.sortedByDescending { it.size }.take(config.maxCandidates),
+            pool = pool,
+            histogram = histogram,
             emptyDirs = accs.flatMap { it.empty }.sorted(),
             duplicates = duplicates,
+            duplicatesFrom = dupFrom,
         )
     }
 
     private fun walk(dir: Path, acc: Acc, excluded: Set<String>, progress: Progress, isActive: () -> Boolean): DirNode {
         if (!isActive()) throw CancellationException("Analyse annulée")
         val dirStr = dir.toString()
+        val dirId = acc.pool.addDir(dirStr)
         val subDirs = ArrayList<DirNode>()
         var filesSize = 0L
         var filesCount = 0
@@ -245,7 +292,7 @@ class StorageAnalyzer(
                 a.isRegularFile -> {
                     val s = a.size()
                     filesSize += s; filesCount++
-                    collect(acc, p.toString(), s, a.lastModifiedTime().toMillis(), progress)
+                    collect(acc, dirId, p, s, a.lastModifiedTime().toMillis(), progress)
                 }
             }
         }
@@ -264,12 +311,11 @@ class StorageAnalyzer(
     private fun filesNode(dir: String, size: Long, count: Int) =
         DirNode("$dir/*", "Fichiers", size, count, emptyList(), NodeKind.FILES, dirPath = dir)
 
-    private fun collect(acc: Acc, path: String, size: Long, mtime: Long, progress: Progress) {
+    private fun collect(acc: Acc, dirId: Int, path: Path, size: Long, mtime: Long, progress: Progress) {
         progress.files.incrementAndGet()
         progress.bytes.addAndGet(size)
-        if (size >= config.largeMinBytes) acc.large += FileRef(path, size, mtime)
-        if (size >= config.oldMinBytes && mtime > 0 && config.now - mtime >= config.oldMinAgeMs) acc.old += FileRef(path, size, mtime)
-        if (size >= config.duplicateMinBytes) acc.dupCandidates += FileRef(path, size, mtime)
+        acc.histogram.add(size)
+        if (size >= acc.pool.floor) acc.pool.add(dirId, path.fileName.toString(), size, mtime)
     }
 
     private inline fun forEachEntry(dir: Path, block: (Path, BasicFileAttributes) -> Unit) {

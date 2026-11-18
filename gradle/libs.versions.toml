@@ -18,7 +18,7 @@ coroutines = "1.11.0"
 kotlinxSerialization = "1.13.0"
 zip4j = "2.11.6"
 commonsCompress = "1.28.0"
-junrar = "7.5.5"
+junrar = "8.1.2"
 xz = "1.12"
 glance = "1.2.0"
 splashscreen = "1.2.0"
@@ -66,6 +66,8 @@ androidx-glance-material3 = { group = "androidx.glance", name = "glance-material
 
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "coil" }
+coil-gif = { group = "io.coil-kt.coil3", name = "coil-gif", version.ref = "coil" }
+coil-svg = { group = "io.coil-kt.coil3", name = "coil-svg", version.ref = "coil" }
 
 media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }

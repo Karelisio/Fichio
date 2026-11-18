@@ -4,7 +4,8 @@ import com.github.junrar.Archive
 import com.github.junrar.exception.CrcErrorException
 import com.github.junrar.exception.RarException
 import com.github.junrar.exception.UnsupportedRarEncryptedException
-import com.github.junrar.exception.UnsupportedRarV5Exception
+import com.github.junrar.exception.UnsupportedRarVersionException
+import com.github.junrar.exception.WrongPasswordException as RarWrongPasswordException
 import com.github.junrar.rarfile.FileHeader as RarHeader
 import com.karelisio.fichio.ops.ConflictChoice
 import kotlinx.coroutines.CancellationException
@@ -189,7 +190,7 @@ object Archives {
     /**
      * Opens [file]. Throws [PasswordRequiredException] when the very listing is encrypted
      * (7z / rar with encrypted headers) and no password was given, [WrongPasswordException],
-     * [UnsupportedArchiveException] (RAR5…) or [CorruptedArchiveException].
+     * [UnsupportedArchiveException] (unknown RAR version…) or [CorruptedArchiveException].
      */
     fun open(file: File, password: CharArray? = null): ArchiveReader {
         if (!file.isFile) throw ArchiveException("Archive introuvable")
@@ -390,7 +391,7 @@ internal class SevenZArchiveReader(file: File, password: CharArray?) : ArchiveRe
     private class StopReading : RuntimeException()
 }
 
-/* ---------- RAR (junrar: RAR 2.x–4.x) ---------- */
+/* ---------- RAR (junrar 8: RAR 1.5–4.x and RAR5, encrypted headers included) ---------- */
 
 internal class RarArchiveReader(file: File, password: CharArray?) : ArchiveReader(file, ArchiveFormat.RAR, password) {
     private val pw: String? = password?.concatToString()
@@ -399,10 +400,12 @@ internal class RarArchiveReader(file: File, password: CharArray?) : ArchiveReade
     private fun openArchive(): Archive {
         try {
             return Archive(file, pw)
-        } catch (e: UnsupportedRarV5Exception) {
+        } catch (e: UnsupportedRarVersionException) {
             throw UnsupportedArchiveException(
-                "Les archives RAR5 ne sont pas prises en charge. Recompressez-la en ZIP ou 7z, ou utilisez une autre appli.", e,
+                "Cette version de RAR n'est pas prise en charge. Recompressez-la en ZIP ou 7z, ou utilisez une autre appli.", e,
             )
+        } catch (e: RarWrongPasswordException) {
+            throw if (pw == null) PasswordRequiredException() else WrongPasswordException(e)
         } catch (e: UnsupportedRarEncryptedException) {
             throw if (pw == null) PasswordRequiredException() else WrongPasswordException(e)
         } catch (e: RarException) {
@@ -424,7 +427,7 @@ internal class RarArchiveReader(file: File, password: CharArray?) : ArchiveReade
 
     private val headers: List<RarHeader> by lazy { archive.fileHeaders }
 
-    private fun RarHeader.name(): String = (fileName ?: fileNameString ?: "").replace('\\', '/')
+    private fun RarHeader.name(): String = (fileName ?: "").replace('\\', '/')
 
     private fun toItem(h: RarHeader) = ArchiveItem.fromRaw(
         rawName = h.name(),
@@ -460,6 +463,7 @@ internal class RarArchiveReader(file: File, password: CharArray?) : ArchiveReade
             throw when {
                 t is ArchiveException -> t
                 t is CancellationException -> t
+                t is RarWrongPasswordException -> WrongPasswordException(t)
                 h.isEncrypted && (t is CrcErrorException || t is RarException) -> WrongPasswordException(t)
                 t is RarException -> CorruptedArchiveException(cause = t)
                 else -> t

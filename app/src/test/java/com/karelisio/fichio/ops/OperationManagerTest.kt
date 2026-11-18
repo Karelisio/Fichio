@@ -10,6 +10,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -36,13 +38,15 @@ class OperationManagerTest {
     private lateinit var scope: CoroutineScope
     private lateinit var ops: OperationManager
     private lateinit var root: File
+    private lateinit var ctx: Application
+    private lateinit var fs: FileSystems
 
     @Before
     fun setUp() {
-        val ctx = ApplicationProvider.getApplicationContext<Application>()
+        ctx = ApplicationProvider.getApplicationContext<Application>()
         db = FichioDatabase.inMemory(ctx)
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        val fs = FileSystems(LocalBackend())
+        fs = FileSystems(LocalBackend())
         ops = OperationManager(ctx, fs, TrashRepository(ctx, db, fs), UndoManager(), scope)
         root = tmp.newFolder("r")
     }
@@ -158,5 +162,53 @@ class OperationManagerTest {
         ops.resolveConflict(ConflictChoice.SKIP, false)
         assertEquals(JobState.DONE, ops.await(first)!!.state)
         assertFalse(File(root, "e/x.txt").exists())
+    }
+
+    private fun parallelManager(limit: MutableStateFlow<Int>) =
+        OperationManager(ctx, fs, TrashRepository(ctx, db, fs), UndoManager(), scope, limit)
+
+    @Test
+    fun jobsRunInParallelUpToTheLiveLimit() = blocking {
+        val limit = MutableStateFlow(1)
+        val par = parallelManager(limit)
+        val src = file("p/x.txt", "new"); file("q/x.txt", "old")
+        val other = file("p/y.txt", "y")
+        // The first job holds its slot while waiting for the user on a conflict.
+        val first = par.copy(listOf(src.path), File(root, "q").path)
+        par.conflict.filterNotNull().first()
+        val second = par.copy(listOf(other.path), File(root, "r").apply { mkdirs() }.path)
+        delay(300)
+        assertEquals(JobState.QUEUED, par.jobs.value.first { it.id == second }.state)
+        // Raising the limit admits the queued job at once: it completes while the first still waits.
+        limit.value = 2
+        assertEquals(JobState.DONE, par.await(second)!!.state)
+        assertEquals("y", File(root, "r/y.txt").readText())
+        assertEquals(JobState.WAITING_CONFLICT, par.jobs.value.first { it.id == first }.state)
+        par.resolveConflict(ConflictChoice.REPLACE, applyToAll = false)
+        assertEquals(JobState.DONE, par.await(first)!!.state)
+        assertEquals("new", File(root, "q/x.txt").readText())
+    }
+
+    @Test
+    fun conflictsOfParallelJobsAreAskedOneAtATime() = blocking {
+        val par = parallelManager(MutableStateFlow(2))
+        val a = file("s1/a.txt", "A"); file("t1/a.txt", "old")
+        val b = file("s2/b.txt", "B"); file("t2/b.txt", "old")
+        val j1 = par.copy(listOf(a.path), File(root, "t1").path)
+        val j2 = par.copy(listOf(b.path), File(root, "t2").path)
+        val firstAsk = par.conflict.filterNotNull().first()
+        delay(300)
+        // Both jobs run, but only one dialog is shown.
+        assertEquals(firstAsk.jobId, par.conflict.value?.jobId)
+        assertTrue(par.jobs.value.none { it.state == JobState.QUEUED })
+        assertEquals(1, par.jobs.value.count { it.state == JobState.WAITING_CONFLICT })
+        par.resolveConflict(ConflictChoice.REPLACE, applyToAll = false)
+        val secondAsk = par.conflict.filterNotNull().first { it.jobId != firstAsk.jobId }
+        assertEquals(setOf(j1, j2), setOf(firstAsk.jobId, secondAsk.jobId))
+        par.resolveConflict(ConflictChoice.REPLACE, applyToAll = false)
+        assertEquals(JobState.DONE, par.await(j1)!!.state)
+        assertEquals(JobState.DONE, par.await(j2)!!.state)
+        assertEquals("A", File(root, "t1/a.txt").readText())
+        assertEquals("B", File(root, "t2/b.txt").readText())
     }
 }

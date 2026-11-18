@@ -41,6 +41,7 @@ import kotlinx.serialization.json.Json
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.RandomAccessFile
 import java.net.URLEncoder
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicLong
@@ -237,8 +238,7 @@ class TransferServer(
                     }
                 } else {
                     call.response.header(HttpHeaders.ContentDisposition, disposition(f.name, inline))
-                    if (!inline) log(TransferActions.DOWNLOAD, guard.relative(f), f.length(), call.client())
-                    call.respondFile(f)
+                    respondFileRanged(call, f, logDownload = !inline)
                 }
             }
 
@@ -308,6 +308,54 @@ class TransferServer(
     }
 
     /** Streams one multipart file to a temporary file then renames it, resolving name conflicts. */
+    /**
+     * Sends [f] honouring `Range` / `If-Range` (206 + Content-Range, 416 when out of bounds), so
+     * that browsers and download managers can resume an interrupted transfer.
+     */
+    private suspend fun respondFileRanged(call: ApplicationCall, f: File, logDownload: Boolean) {
+        val total = f.length()
+        val modified = f.lastModified()
+        val tag = HttpRange.etag(total, modified)
+        call.response.header(HttpHeaders.AcceptRanges, "bytes")
+        call.response.header(HttpHeaders.ETag, tag)
+        call.response.header(HttpHeaders.LastModified, HttpRange.httpDate(modified))
+        val decision = HttpRange.decide(
+            call.request.headers[HttpHeaders.Range], call.request.headers[HttpHeaders.IfRange], total, tag, modified,
+        )
+        when (decision) {
+            HttpRange.Decision.Full -> {
+                if (logDownload) log(TransferActions.DOWNLOAD, guard.relative(f), total, call.client())
+                call.respondFile(f)
+            }
+            HttpRange.Decision.Unsatisfiable -> {
+                call.response.header(HttpHeaders.ContentRange, HttpRange.unsatisfiedRange(total))
+                call.respondText("", status = HttpStatusCode.RequestedRangeNotSatisfiable)
+            }
+            is HttpRange.Decision.Partial -> {
+                val span = decision.span
+                // A resumed download is logged once, by its first request.
+                if (logDownload && span.start == 0L) log(TransferActions.DOWNLOAD, guard.relative(f), total, call.client())
+                call.response.header(HttpHeaders.ContentRange, HttpRange.contentRange(span, total))
+                val type = runCatching { ContentType.parse(FileTypes.mimeOfName(f.name)) }.getOrDefault(ContentType.Application.OctetStream)
+                call.respondOutputStream(type, HttpStatusCode.PartialContent, span.length) {
+                    withContext(Dispatchers.IO) {
+                        RandomAccessFile(f, "r").use { raf ->
+                            raf.seek(span.start)
+                            val buf = ByteArray(64 * 1024)
+                            var left = span.length
+                            while (left > 0) {
+                                val n = raf.read(buf, 0, minOf(buf.size.toLong(), left).toInt())
+                                if (n < 0) break
+                                write(buf, 0, n)
+                                left -= n
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private suspend fun receiveFile(dir: File, name: String, part: PartData.FileItem): File? {
         val tmp = File(dir, ".${name.take(80)}.${System.nanoTime()}.fichio-part")
         if (!guard.isAllowed(tmp)) return null

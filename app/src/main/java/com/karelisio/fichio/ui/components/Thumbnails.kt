@@ -7,7 +7,9 @@ import androidx.compose.runtime.Immutable
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.asImage
+import coil3.Extras
 import coil3.decode.DataSource
+import coil3.decode.Decoder
 import coil3.decode.ImageSource
 import coil3.disk.DiskCache
 import coil3.disk.directory
@@ -15,11 +17,16 @@ import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
 import coil3.fetch.ImageFetchResult
 import coil3.fetch.SourceFetchResult
+import coil3.getExtra
+import coil3.gif.AnimatedImageDecoder
 import coil3.key.Keyer
 import coil3.map.Mapper
 import coil3.memory.MemoryCache
+import coil3.request.ImageRequest
 import coil3.request.Options
 import coil3.request.crossfade
+import coil3.serviceLoaderEnabled
+import coil3.svg.SvgDecoder
 import coil3.video.VideoFrameDecoder
 import com.karelisio.fichio.core.fs.FileSystems
 import com.karelisio.fichio.core.fs.StoragePaths
@@ -112,14 +119,38 @@ private class ThumbFetcher(
     }
 }
 
+private val animatedKey = Extras.Key(default = false)
+
+/**
+ * Lets this request decode GIFs / animated WebP / animated HEIF as animated drawables. Off by
+ * default: lists and grids show the first frame (cheap, no per-cell animation loop); the image
+ * viewer opts in. The memory-cache extra keeps the animated and static results apart.
+ */
+fun ImageRequest.Builder.animated(enable: Boolean = true) = apply {
+    extras[animatedKey] = enable
+    memoryCacheKeyExtra("fichio.animated", if (enable) "1" else null)
+}
+
+/** [AnimatedImageDecoder] (API 28+, so always on minSdk 30) gated by [animated]. */
+private class GatedAnimatedDecoderFactory : Decoder.Factory {
+    private val delegate = AnimatedImageDecoder.Factory()
+    override fun create(result: SourceFetchResult, options: Options, imageLoader: ImageLoader): Decoder? =
+        if (options.getExtra(animatedKey)) delegate.create(result, options, imageLoader) else null
+}
+
 object FichioImageLoader {
     fun create(context: PlatformContext, fs: FileSystems): ImageLoader =
         ImageLoader.Builder(context)
+            // Components are registered explicitly: the service loader would otherwise add an
+            // ungated AnimatedImageDecoder (animating every GIF thumbnail of a list).
+            .serviceLoaderEnabled(false)
             .components {
                 add(ThumbKeyer())
                 add(ThumbMapper())
                 add(ThumbFetcher.Factory(context, fs))
                 add(VideoFrameDecoder.Factory())
+                add(GatedAnimatedDecoderFactory())
+                add(SvgDecoder.Factory())
             }
             .memoryCache { MemoryCache.Builder().maxSizePercent(context, 0.20).build() }
             .diskCache {

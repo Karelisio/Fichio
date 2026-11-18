@@ -7,6 +7,7 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import com.karelisio.fichio.core.fs.FileSystems
 import com.karelisio.fichio.core.fs.LocalBackend
+import com.karelisio.fichio.core.fs.SafAccess
 import com.karelisio.fichio.core.fs.VolumeRepository
 import com.karelisio.fichio.data.FavoritesRepository
 import com.karelisio.fichio.data.RecentsRepository
@@ -23,6 +24,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -43,10 +45,13 @@ class AppContainer(context: Context) {
     val settings: SettingsRepository by lazy { SettingsRepository(appContext) }
     val volumes: VolumeRepository by lazy { VolumeRepository(appContext) }
     val shizuku: ShizukuManager by lazy { ShizukuManager(appContext) }
-    val fileSystems: FileSystems by lazy { FileSystems(LocalBackend()) { shizuku.backend } }
+    val saf: SafAccess by lazy { SafAccess(appContext, volumes) }
+    val fileSystems: FileSystems by lazy {
+        FileSystems(LocalBackend(), shizukuProvider = { shizuku.backend }, safProvider = { saf.backendFor(it) })
+    }
     val trash: TrashRepository by lazy { TrashRepository(appContext, database, fileSystems) }
     val undo: UndoManager by lazy { UndoManager() }
-    val operations: OperationManager by lazy { OperationManager(appContext, fileSystems, trash, undo, appScope) }
+    val operations: OperationManager by lazy { OperationManager(appContext, fileSystems, trash, undo, appScope, settings.settings.map { it.concurrentOperations }) }
     val favorites: FavoritesRepository by lazy { FavoritesRepository(database) }
     val recents: RecentsRepository by lazy { RecentsRepository(database, fileSystems, appScope) }
     val indexer: SearchIndexer by lazy { SearchIndexer(appContext, database, fileSystems, appScope) }

@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -113,6 +115,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import kotlin.math.sqrt
 
 private enum class AnalysisTab(val label: String, val icon: ImageVector) {
     MAP("Carte", Icons.Rounded.DataUsage),
@@ -122,9 +125,20 @@ private enum class AnalysisTab(val label: String, val icon: ImageVector) {
     EMPTY("Vides", Icons.Rounded.FolderOff),
 }
 
-private val LARGE_STEPS = listOf(10, 25, 50, 100, 250, 500, 1000, 2000)
-private val OLD_STEPS = listOf(30 to "1 mois", 90 to "3 mois", 180 to "6 mois", 365 to "1 an", 730 to "2 ans")
+private val LARGE_STEPS = listOf(1, 5, 10, 25, 50, 100, 250, 500, 1000, 2000)
+private val OLD_STEPS = listOf(7 to "1 semaine", 30 to "1 mois", 90 to "3 mois", 180 to "6 mois", 365 to "1 an", 730 to "2 ans")
+/** Minimum sizes (KiB) of the old-files and duplicates tabs; all at or above the pool floor (64 Ko). */
+private val OLD_SIZE_STEPS = listOf(64, 512, 1024, 10 * 1024, 100 * 1024)
+private val DUP_STEPS = listOf(64, 100, 256, 512, 1024, 10 * 1024, 100 * 1024)
 private const val DAY_MS = 24L * 3600 * 1000
+private const val MB = 1024L * 1024
+
+/** "64 Ko", "1 Mo", "100 Mo", "2 Go" for a threshold in KiB. */
+private fun kbLabel(kb: Int): String = when {
+    kb >= 1024 * 1024 && kb % (1024 * 1024) == 0 -> "${kb / (1024 * 1024)} Go"
+    kb >= 1024 && kb % 1024 == 0 -> "${kb / 1024} Mo"
+    else -> "$kb Ko"
+}
 
 /** Sunburst map + large files, duplicates, old files, empty folders. */
 @Composable
@@ -184,16 +198,22 @@ fun AnalysisScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
                         RescanBanner(status as? ScanStatus.Running ?: ScanStatus.Running())
                     }
                     val visible = remember(settings.showHidden) { { p: String -> settings.showHidden || !p.contains("/.") } }
-                    val thresholdMb = settings.largeFileThresholdMb.coerceAtLeast(10)
-                    val large = remember(r, thresholdMb, visible) {
-                        r.large.filter { it.size >= thresholdMb * 1024L * 1024L && visible(it.path) }
+                    // Thresholds are applied to the scan's compact pool: changing one recomputes the list
+                    // at once, without rescanning (duplicates of smaller files are hashed on demand).
+                    val floor = r.pool.floor
+                    val thresholdMb = settings.largeFileThresholdMb.coerceAtLeast(1)
+                    val largeMin = maxOf(thresholdMb * MB, floor)
+                    val large = remember(r, largeMin, visible) { r.large(largeMin, visible) }
+                    val oldDays = settings.oldFileThresholdDays.coerceAtLeast(1)
+                    val oldMin = maxOf(settings.oldFileMinKb * 1024L, floor)
+                    val old = remember(r, oldDays, oldMin, recents, visible) {
+                        r.old(oldMin, oldDays * DAY_MS, accept = { it !in recents && visible(it) })
                     }
-                    val oldDays = settings.oldFileThresholdDays.coerceAtLeast(30)
-                    val old = remember(r, oldDays, recents, visible) {
-                        r.old.filter { r.scannedAt - it.lastModified >= oldDays * DAY_MS && it.path !in recents && visible(it.path) }
-                    }
-                    val dups = remember(r, visible) {
-                        r.duplicates.mapNotNull { g ->
+                    val dupMin = maxOf(settings.duplicateMinKb * 1024L, floor)
+                    LaunchedEffect(r, dupMin) { AnalysisController.ensureDuplicates(container, dupMin) }
+                    val dupProgress by AnalysisController.duplicateProgress.collectAsStateWithLifecycle()
+                    val dups = remember(r, dupMin, visible) {
+                        r.duplicates(dupMin).mapNotNull { g ->
                             val f = g.files.filter { visible(it.path) }
                             if (f.size >= 2) g.copy(files = f) else null
                         }
@@ -242,43 +262,64 @@ fun AnalysisScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
                             haptics.tick()
                             selections[t] = if (p in sel) sel - p else sel + p
                         }
-                        val askTrash: () -> Unit = { if (sel.isNotEmpty()) pendingTrash = t to sel.toList() }
+                        // Only what the tab currently shows (a threshold change may have hidden selected items).
+                        fun askTrash(shown: () -> List<String>): () -> Unit = {
+                            val paths = shown().filter { it in sel }
+                            if (paths.isNotEmpty()) pendingTrash = t to paths
+                        }
                         when (t) {
                             AnalysisTab.MAP -> MapTab(r, onOpenFolder, mapPaths) { mapPaths = it }
                             AnalysisTab.LARGE -> FilesTab(
                                 files = large, selected = sel, onToggle = toggle,
                                 onSelectAll = { selections[t] = large.mapTo(HashSet()) { it.path } },
                                 onClear = { selections[t] = emptySet() },
-                                onTrash = askTrash, onOpenFolder = onOpenFolder,
+                                onTrash = askTrash { large.map { it.path } }, onOpenFolder = onOpenFolder,
                                 emptyTitle = "Aucun gros fichier",
-                                emptyMessage = "Rien ne dépasse $thresholdMb Mo.",
+                                emptyMessage = "Rien ne dépasse ${Format.size(largeMin)}.",
                                 emptyIcon = Icons.Rounded.SdStorage,
                             ) {
-                                LargeThresholdControl(thresholdMb) { mb -> scope.launch { container.settings.setLargeFileThresholdMb(mb) } }
+                                LargeThresholdControl(
+                                    currentMb = thresholdMb,
+                                    histogram = r.histogram,
+                                    stats = remember(r, floor) { { bytes: Long -> r.pool.stats(maxOf(bytes, floor)) } },
+                                ) { mb -> scope.launch { container.settings.setLargeFileThresholdMb(mb) } }
                             }
                             AnalysisTab.OLD -> FilesTab(
                                 files = old, selected = sel, onToggle = toggle,
                                 onSelectAll = { selections[t] = old.mapTo(HashSet()) { it.path } },
                                 onClear = { selections[t] = emptySet() },
-                                onTrash = askTrash, onOpenFolder = onOpenFolder,
+                                onTrash = askTrash { old.map { it.path } }, onOpenFolder = onOpenFolder,
                                 emptyTitle = "Aucun fichier oublié",
                                 emptyMessage = "Tous vos fichiers volumineux ont été ouverts ou modifiés récemment.",
                                 emptyIcon = Icons.Rounded.History,
                                 showDate = true,
                             ) {
-                                OldThresholdControl(oldDays) { d -> scope.launch { container.settings.setOldFileThresholdDays(d) } }
+                                OldThresholdControl(
+                                    currentDays = oldDays,
+                                    currentMinKb = settings.oldFileMinKb,
+                                    floorBytes = floor,
+                                    onChangeSize = { kb -> scope.launch { container.settings.setOldFileMinKb(kb) } },
+                                ) { d -> scope.launch { container.settings.setOldFileThresholdDays(d) } }
                             }
                             AnalysisTab.DUPLICATES -> DuplicatesTab(
                                 groups = dups, selected = sel, onToggle = toggle,
                                 onKeepNewest = { haptics.confirm(); selections[t] = keepNewestSelection(dups) },
                                 onClear = { selections[t] = emptySet() },
-                                onTrash = askTrash, onOpenFolder = onOpenFolder,
-                            )
+                                onTrash = askTrash { dups.flatMap { g -> g.files.map { it.path } } }, onOpenFolder = onOpenFolder,
+                                minBytes = dupMin,
+                                searching = dupProgress,
+                            ) {
+                                DuplicateThresholdControl(
+                                    currentKb = settings.duplicateMinKb,
+                                    floorBytes = floor,
+                                    progress = dupProgress,
+                                ) { kb -> scope.launch { container.settings.setDuplicateMinKb(kb) } }
+                            }
                             AnalysisTab.EMPTY -> EmptyDirsTab(
                                 dirs = empties, selected = sel, onToggle = toggle,
                                 onSelectAll = { selections[t] = empties.toHashSet() },
                                 onClear = { selections[t] = emptySet() },
-                                onTrash = askTrash, onOpenFolder = onOpenFolder,
+                                onTrash = askTrash { empties }, onOpenFolder = onOpenFolder,
                             )
                         }
                     }
@@ -622,6 +663,9 @@ private fun DuplicatesTab(
     onClear: () -> Unit,
     onTrash: () -> Unit,
     onOpenFolder: (String) -> Unit,
+    minBytes: Long,
+    searching: Pair<Int, Int>?,
+    controls: @Composable () -> Unit,
 ) {
     val allFiles = remember(groups) { groups.flatMap { it.files } }
     val selFiles = remember(allFiles, selected) { allFiles.filter { it.path in selected } }
@@ -641,10 +685,15 @@ private fun DuplicatesTab(
                 TextButton(onClick = onClear) { Text("Aucun") }
             }
         },
-        controls = null,
+        controls = controls,
         isEmpty = groups.isEmpty(),
         empty = {
-            EmptyState(Icons.Rounded.ContentCopy, "Aucun doublon", message = "Aucun fichier identique de plus de 100 Ko n'a été trouvé.")
+            EmptyState(
+                Icons.Rounded.ContentCopy,
+                if (searching != null) "Recherche en cours…" else "Aucun doublon",
+                message = if (searching != null) "Comparaison des fichiers de plus de ${Format.size(minBytes)}."
+                else "Aucun fichier identique de plus de ${Format.size(minBytes)} n'a été trouvé.",
+            )
         },
     ) {
         groups.forEachIndexed { gi, g ->
@@ -787,17 +836,34 @@ private fun SelectableRow(
 }
 
 @Composable
-private fun LargeThresholdControl(currentMb: Int, onChange: (Int) -> Unit) {
+private fun LargeThresholdControl(
+    currentMb: Int,
+    histogram: SizeHistogram,
+    stats: (Long) -> Pair<Int, Long>,
+    onChange: (Int) -> Unit,
+) {
     var index by remember(currentMb) {
         mutableStateOf(LARGE_STEPS.indexOfFirst { it >= currentMb }.let { if (it < 0) LARGE_STEPS.lastIndex else it }.toFloat())
     }
     val haptics = rememberHaptics()
     val mb = LARGE_STEPS[index.toInt().coerceIn(0, LARGE_STEPS.lastIndex)]
+    // Live while dragging: counted on the pool, the list itself is rebuilt when the finger lifts.
+    val (count, bytes) = remember(mb, stats) { stats(mb * MB) }
     Column(Modifier.padding(horizontal = 24.dp)) {
-        Text(
-            "Taille minimale : ${if (mb >= 1000) "${mb / 1000} Go" else "$mb Mo"}",
-            style = MaterialTheme.typography.labelLarge,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Taille minimale : ${if (mb >= 1000) "${mb / 1000} Go" else "$mb Mo"}",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                "${Format.items(count)} · ${Format.size(bytes)}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        SizeHistogramBars(histogram, fromBytes = MB, thresholdBytes = mb * MB)
         Slider(
             value = index,
             onValueChange = {
@@ -811,8 +877,44 @@ private fun LargeThresholdControl(currentMb: Int, onChange: (Int) -> Unit) {
     }
 }
 
+/** Bytes per size bucket (log2) from [fromBytes]; the buckets holding files above the threshold are lit. */
 @Composable
-private fun OldThresholdControl(currentDays: Int, onChange: (Int) -> Unit) {
+private fun SizeHistogramBars(histogram: SizeHistogram, fromBytes: Long, thresholdBytes: Long) {
+    val buckets = remember(histogram, fromBytes) { histogram.buckets().filter { it.first >= fromBytes } }
+    if (buckets.isEmpty()) return
+    val maxBytes = buckets.maxOf { it.third }.coerceAtLeast(1)
+    val reduce = LocalReduceMotion.current
+    Row(
+        Modifier.fillMaxWidth().height(36.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        buckets.forEach { (lower, _, bytes) ->
+            // Bucket [lower, 2·lower): lit when part of it is at or above the threshold.
+            val lit = lower * 2 > thresholdBytes
+            val color by animateColorAsState(
+                if (lit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                animationSpec = if (reduce) snap() else spring(),
+                label = "bar",
+            )
+            val fraction = sqrt(bytes.toDouble() / maxBytes).toFloat().coerceIn(0.06f, 1f)
+            Box(
+                Modifier.weight(1f).fillMaxHeight(fraction)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(color),
+            )
+        }
+    }
+}
+
+@Composable
+private fun OldThresholdControl(
+    currentDays: Int,
+    currentMinKb: Int,
+    floorBytes: Long,
+    onChangeSize: (Int) -> Unit,
+    onChange: (Int) -> Unit,
+) {
     val haptics = rememberHaptics()
     Column(Modifier.padding(horizontal = 24.dp)) {
         Text("Non modifiés et jamais ouverts depuis", style = MaterialTheme.typography.labelLarge)
@@ -826,5 +928,75 @@ private fun OldThresholdControl(currentDays: Int, onChange: (Int) -> Unit) {
                 )
             }
         }
+        Spacer(Modifier.height(10.dp))
+        Text("Taille minimale", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(6.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OLD_SIZE_STEPS.forEach { kb ->
+                FilterChip(
+                    selected = currentMinKb == kb,
+                    enabled = kb * 1024L >= floorBytes || kb == OLD_SIZE_STEPS.last(),
+                    onClick = { haptics.tick(); onChangeSize(kb) },
+                    label = { Text(kbLabel(kb)) },
+                )
+            }
+        }
+        FloorNote(floorBytes)
     }
+}
+
+@Composable
+private fun DuplicateThresholdControl(
+    currentKb: Int,
+    floorBytes: Long,
+    progress: Pair<Int, Int>?,
+    onChange: (Int) -> Unit,
+) {
+    val steps = remember(floorBytes) { DUP_STEPS.filter { it * 1024L >= floorBytes }.ifEmpty { listOf(DUP_STEPS.last()) } }
+    var index by remember(currentKb, steps) {
+        mutableStateOf(steps.indexOfFirst { it >= currentKb }.let { if (it < 0) steps.lastIndex else it }.toFloat())
+    }
+    val haptics = rememberHaptics()
+    val kb = steps[index.toInt().coerceIn(0, steps.lastIndex)]
+    Column(Modifier.padding(horizontal = 24.dp)) {
+        Text("Taille minimale : ${kbLabel(kb)}", style = MaterialTheme.typography.labelLarge)
+        if (steps.size > 1) {
+            Slider(
+                value = index,
+                onValueChange = {
+                    if (it.toInt() != index.toInt()) haptics.segment()
+                    index = it
+                },
+                onValueChangeFinished = { onChange(kb) },
+                valueRange = 0f..steps.lastIndex.toFloat(),
+                steps = (steps.size - 2).coerceAtLeast(0),
+            )
+        }
+        AnimatedVisibility(progress != null, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+            val (done, total) = progress ?: (0 to 0)
+            Column {
+                Text(
+                    if (total > 0) "Comparaison des petits fichiers… $done / $total" else "Recherche des fichiers de même taille…",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                if (total > 0) LinearWavyProgressIndicator(progress = { done.toFloat() / total }, modifier = Modifier.fillMaxWidth())
+                else LinearWavyProgressIndicator(Modifier.fillMaxWidth())
+            }
+        }
+        FloorNote(floorBytes)
+    }
+}
+
+/** Shown only when the storage held so many files that the pool had to drop its smallest ones. */
+@Composable
+private fun FloorNote(floorBytes: Long) {
+    if (floorBytes <= StorageAnalyzer.POOL_MIN_BYTES) return
+    Text(
+        "Très nombreux fichiers : seuls ceux de plus de ${Format.size(floorBytes)} sont analysés.",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 6.dp),
+    )
 }

@@ -78,6 +78,7 @@ import com.karelisio.fichio.ui.components.rememberHaptics
 import com.karelisio.fichio.ui.navigation.Opener
 import com.karelisio.fichio.ui.navigation.sharedElementKey
 import com.karelisio.fichio.ui.components.Thumb
+import com.karelisio.fichio.ui.components.animated
 import com.karelisio.fichio.ui.theme.LocalReduceMotion
 import kotlinx.coroutines.launch
 import java.io.File
@@ -281,6 +282,7 @@ private fun ImagePage(
             .data(data)
             .size(maxDim, maxDim)
             .precision(Precision.INEXACT)
+            .animated() // GIF / animated WebP play; SVG is rendered at the requested size.
             .crossfade(true)
             .build()
     }

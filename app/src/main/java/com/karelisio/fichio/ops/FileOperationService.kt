@@ -42,6 +42,8 @@ class FileOperationService : LifecycleService() {
         private const val ACTION_CANCEL = "com.karelisio.fichio.ops.CANCEL"
         private const val EXTRA_JOB = "job"
         private const val MAX_SEGMENTS = 6
+        /** EXTRA_JOB value addressing every running job (notification of simultaneous jobs). */
+        private const val ALL = -2L
 
         /** Starts (or pokes) the service. Safe to call often; never throws. */
         fun start(context: Context) {
@@ -78,10 +80,13 @@ class FileOperationService : LifecycleService() {
         goForeground(build(ops.jobs.value.filterNot { it.state.isFinished }))
 
         val id = intent?.getLongExtra(EXTRA_JOB, -1L) ?: -1L
+        val unfinished = { ops.jobs.value.filterNot { it.state.isFinished } }
+        val running = { if (id == ALL) unfinished().filterNot { it.state == JobState.QUEUED }.map { it.id } else listOf(id) }
         when (intent?.action) {
-            ACTION_PAUSE -> ops.pause(id)
-            ACTION_RESUME -> ops.resume(id)
-            ACTION_CANCEL -> ops.cancel(id)
+            ACTION_PAUSE -> running().forEach(ops::pause)
+            ACTION_RESUME -> running().forEach(ops::resume)
+            // « Tout annuler » also drops the queued jobs.
+            ACTION_CANCEL -> (if (id == ALL) unfinished().map { it.id } else listOf(id)).forEach(ops::cancel)
         }
 
         if (!collecting) {
@@ -186,14 +191,22 @@ class FileOperationService : LifecycleService() {
                 .build()
         }
 
-        val p = job.progress
+        // Jobs actually moving (several when « Opérations simultanées » > 1).
+        val live = active.filter { it.state == JobState.RUNNING || it.state == JobState.PAUSED || it.state == JobState.WAITING_CONFLICT }
+        val multi = live.size > 1
+        val p = if (multi) aggregate(live) else job.progress
         val pct = (p.fraction * 100).roundToInt().coerceIn(0, 100)
-        val others = active.size - 1
-        val title = if (others > 0) "${job.title} (+$others)" else job.title
-        val text = when (job.state) {
-            JobState.PAUSED -> "En pause · $pct %"
-            JobState.WAITING_CONFLICT -> "Un élément existe déjà : choisissez une action"
-            JobState.QUEUED -> "En attente"
+        val queued = active.size - live.size.coerceAtLeast(1)
+        val title = when {
+            multi -> "${live.size} opérations en cours" + if (queued > 0) " (+$queued)" else ""
+            active.size > 1 -> "${job.title} (+${active.size - 1})"
+            else -> job.title
+        }
+        val allPaused = live.isNotEmpty() && live.all { it.state == JobState.PAUSED }
+        val text = when {
+            live.any { it.state == JobState.WAITING_CONFLICT } -> "Un élément existe déjà : choisissez une action"
+            job.state == JobState.PAUSED && (!multi || allPaused) -> "En pause · $pct %"
+            job.state == JobState.QUEUED -> "En attente"
             else -> buildString {
                 if (p.totalBytes > 0) append("${Format.size(p.doneBytes)} sur ${Format.size(p.totalBytes)}")
                 else if (p.totalItems > 0) append("${p.doneItems} sur ${p.totalItems}")
@@ -201,8 +214,11 @@ class FileOperationService : LifecycleService() {
                 remaining(p)?.let { append(" · $it") }
             }.ifEmpty { "Préparation…" }
         }
+        val sub = if (multi) live.joinToString(" · ") { it.progress.currentName.ifEmpty { it.title } }
+        else p.currentName.takeIf { it.isNotEmpty() && job.state == JobState.RUNNING }
 
-        // Multi-job queue: one segment per job; the bar fills across the whole run.
+        // Several jobs (queued or simultaneous): one segment per job, each filling with its own
+        // progress, so parallel jobs advance side by side on the same bar.
         val style = NotificationCompat.ProgressStyle().setStyledByProgress(true)
         val runJobs = ops.jobs.value.filter { it.id in seen || !it.state.isFinished }.takeLast(MAX_SEGMENTS)
         if (runJobs.size > 1) {
@@ -224,21 +240,38 @@ class FileOperationService : LifecycleService() {
         } else {
             style.setProgress(pct)
         }
-        style.setProgressIndeterminate(job.state == JobState.QUEUED || (job.progress.indeterminate && job.state == JobState.RUNNING))
+        style.setProgressIndeterminate(
+            !multi && (job.state == JobState.QUEUED || (job.progress.indeterminate && job.state == JobState.RUNNING)),
+        )
 
         b.setContentTitle(title)
             .setContentText(text)
-            .setSubText(p.currentName.takeIf { it.isNotEmpty() && job.state == JobState.RUNNING })
-            .setShortCriticalText("$pct %")
+            .setSubText(sub)
+            .setShortCriticalText(if (multi) "${live.size} · $pct %" else "$pct %")
             .setStyle(style)
 
-        if (job.state == JobState.PAUSED) {
-            b.addAction(0, "Reprendre", actionIntent(ACTION_RESUME, job.id))
-        } else if (job.state == JobState.RUNNING) {
-            b.addAction(0, "Pause", actionIntent(ACTION_PAUSE, job.id))
+        // With several running jobs, the actions apply to all of them (EXTRA_JOB = ALL).
+        val target = if (multi) ALL else job.id
+        if (allPaused || (!multi && job.state == JobState.PAUSED)) {
+            b.addAction(0, if (multi) "Tout reprendre" else "Reprendre", actionIntent(ACTION_RESUME, target))
+        } else if (multi || job.state == JobState.RUNNING) {
+            b.addAction(0, if (multi) "Tout suspendre" else "Pause", actionIntent(ACTION_PAUSE, target))
         }
-        b.addAction(0, "Annuler", actionIntent(ACTION_CANCEL, job.id))
+        b.addAction(0, if (multi) "Tout annuler" else "Annuler", actionIntent(ACTION_CANCEL, target))
         return b.build()
+    }
+
+    /** Sum of the progress of jobs running side by side (bytes, items, speed). */
+    private fun aggregate(jobs: List<Job>): JobProgress {
+        val ps = jobs.map { it.progress }
+        return JobProgress(
+            doneBytes = ps.sumOf { it.doneBytes },
+            totalBytes = ps.sumOf { it.totalBytes },
+            doneItems = ps.sumOf { it.doneItems },
+            totalItems = ps.sumOf { it.totalItems },
+            currentName = "",
+            speed = jobs.filter { it.state == JobState.RUNNING }.sumOf { it.progress.speed },
+        )
     }
 
     private fun remaining(p: JobProgress): String? {

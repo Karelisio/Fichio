@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.Gavel
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lan
 import androidx.compose.material.icons.rounded.ManageSearch
@@ -162,6 +163,12 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
         ),
         "Fichiers" to listOf(
             switchRow(Icons.Rounded.Warning, "Confirmer la suppression", null, s.confirmDelete) { set { setConfirmDelete(it) } },
+            customRow(Icons.Rounded.Layers, "Opérations simultanées", "Copies et déplacements exécutés en même temps ; les suivants attendent") {
+                ChoiceButtons(
+                    options = (1..SettingsRepository.MAX_CONCURRENT_OPERATIONS).map { it to "$it" },
+                    selected = s.concurrentOperations,
+                ) { set { setConcurrentOperations(it) } }
+            },
             switchRow(Icons.Rounded.Delete, "Corbeille", "Les fichiers supprimés y restent avant d'être effacés", s.trashEnabled) { set { setTrashEnabled(it) } },
             intSliderRow(
                 Icons.Rounded.DeleteSweep, "Vider la corbeille après", 1..90, s.trashRetentionDays.coerceIn(1, 90),
@@ -186,11 +193,11 @@ fun SettingsScreen(onBack: () -> Unit, onOpenPermissions: () -> Unit) {
         ),
         "Analyse" to listOf(
             stepSliderRow(
-                Icons.Rounded.Straighten, "Seuil des gros fichiers", listOf(10, 25, 50, 100, 250, 500, 1000, 2000),
+                Icons.Rounded.Straighten, "Seuil des gros fichiers", listOf(1, 5, 10, 25, 50, 100, 250, 500, 1000, 2000),
                 s.largeFileThresholdMb, label = { if (it >= 1000) "${it / 1000} Go" else "$it Mo" },
             ) { v -> set { setLargeFileThresholdMb(v) } },
             stepSliderRow(
-                Icons.Rounded.History, "Fichiers anciens après", listOf(30, 90, 180, 365, 730, 1095),
+                Icons.Rounded.History, "Fichiers anciens après", listOf(7, 30, 90, 180, 365, 730, 1095),
                 s.oldFileThresholdDays, label = { if (it >= 365) Format.count(it / 365, "an") else "$it j" },
             ) { v -> set { setOldFileThresholdDays(v) } },
         ),

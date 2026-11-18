@@ -21,13 +21,15 @@ class StorageAnalyzerTest {
         return f
     }
 
-    private fun scan(excluded: Set<String> = emptySet()): AnalysisResult = runBlocking {
+    private fun scan(excluded: Set<String> = emptySet(), dupMin: Long = 10, cap: Int = 400_000): AnalysisResult = runBlocking {
         StorageAnalyzer(
             root = tmp.root.path,
             excluded = excluded,
-            config = StorageAnalyzer.Config(largeMinBytes = 1000, oldMinBytes = 10, duplicateMinBytes = 10, protectedEmpty = setOf("dcim")),
+            config = StorageAnalyzer.Config(poolMinBytes = 10, poolCap = cap, duplicateMinBytes = dupMin, protectedEmpty = setOf("dcim")),
         ).scan()
     }
+
+    private val day = 24L * 3600 * 1000
 
     @Test fun buildsSizeTreeAndLists() {
         file("Music/a.mp3", 2000, 3)
@@ -45,8 +47,8 @@ class StorageAnalyzerTest {
         val music = r.root.children.first { it.name == "Music" }
         assertEquals(4000L, music.size)
         assertTrue(r.root.children.any { it.kind == NodeKind.FILES && it.size == 100L })
-        assertEquals(2, r.large.size)
-        assertEquals(listOf("old.txt"), r.old.map { it.name })
+        assertEquals(2, r.large(1000).size)
+        assertEquals(listOf("old.txt"), r.old(10, 30 * day).map { it.name })
         assertEquals(1, r.duplicates.size)
         // Top-most empty subtree only, standard folders protected.
         assertTrue(r.emptyDirs.contains(File(tmp.root, "Docs/empty").path))
@@ -54,7 +56,7 @@ class StorageAnalyzerTest {
         assertTrue(r.emptyDirs.contains(File(tmp.root, "Lonely").path))
         assertFalse(r.emptyDirs.contains(File(tmp.root, "DCIM").path))
         // Excluded folder never entered.
-        assertTrue(r.large.none { it.path.contains("secret") })
+        assertTrue(r.large(1).none { it.path.contains("secret") })
     }
 
     @Test fun removingUpdatesTreeAndLists() {
@@ -67,7 +69,8 @@ class StorageAnalyzerTest {
         assertEquals(r.totalBytes - 2000, after.totalBytes)
         assertTrue(after.duplicates.isEmpty())
         assertTrue(after.emptyDirs.isEmpty())
-        assertTrue(after.large.none { it.path == a.path })
+        assertTrue(after.large(1000).none { it.path == a.path })
+        assertEquals(1, after.large(1000).size)
         val music = after.root.children.first { it.name == "Music" }
         assertEquals(2000L, music.size)
     }
@@ -92,5 +95,58 @@ class StorageAnalyzerTest {
             assertTrue(it.x0 >= parent.x0 - 1e-9 && it.x1 <= parent.x1 + 1e-9)
         }
         assertTrue(arcs.all { it.depth <= 3 })
+    }
+
+    @Test fun thresholdsAreRecomputedWithoutRescanning() {
+        file("A/big.bin", 5000)
+        file("A/mid.bin", 1500, ageDays = 10)
+        file("B/small.bin", 200, ageDays = 100)
+        file("B/tiny.bin", 5)
+        val r = scan()
+        // Any threshold down to the pool floor, from the same result.
+        assertEquals(listOf("big.bin"), r.large(3000).map { it.name })
+        assertEquals(listOf("big.bin", "mid.bin", "small.bin"), r.large(100).map { it.name })
+        assertEquals(listOf("mid.bin", "small.bin"), r.old(100, 7 * day).map { it.name })
+        assertEquals(listOf("small.bin"), r.old(100, 30 * day).map { it.name })
+        assertEquals(listOf("small.bin"), r.old(100, 7 * day, accept = { !it.endsWith("mid.bin") }).map { it.name })
+        assertEquals(2 to 6500L, r.pool.stats(1000))
+        // Below the floor: not in the pool, but counted by the histogram.
+        assertTrue(r.large(1).none { it.name == "tiny.bin" })
+        assertEquals(4L, r.histogram.countAtLeast(0))
+        assertEquals(1L, r.histogram.countAtLeast(4096))
+    }
+
+    @Test fun smallerDuplicatesAreHashedOnDemand() {
+        file("x/a.bin", 3000, 7); file("y/a.bin", 3000, 7)
+        file("x/s.txt", 50, 9); file("y/s.txt", 50, 9)
+        val r = scan(dupMin = 1000)
+        assertEquals(1000L, r.duplicatesFrom)
+        assertEquals(1, r.duplicates(1).size)
+        // Only the same-size files not hashed yet are candidates for the extension.
+        val extra = r.pool.sameSizeCandidates(10, r.duplicatesFrom)
+        assertEquals(setOf("s.txt"), extra.map { it.name }.toSet())
+        val groups = DuplicateFinder.forFiles(minSize = 10).find(extra)
+        val extended = r.withDuplicates(groups, 10)
+        assertEquals(10L, extended.duplicatesFrom)
+        assertEquals(2, extended.duplicates(10).size)
+        assertEquals(1, extended.duplicates(1000).size)
+        // Deleted meanwhile: filtered out of the groups added later.
+        val afterDelete = r.removing(listOf(File(tmp.root, "x/s.txt").path)).withDuplicates(groups, 10)
+        assertEquals(1, afterDelete.duplicates(10).size)
+    }
+
+    @Test fun poolStaysBoundedAndKeepsTheBiggest() {
+        repeat(40) { i -> file("many/f$i.bin", 100 + i * 10) }
+        val r = scan(cap = 10)
+        assertTrue(r.pool.size <= 10)
+        assertTrue(r.pool.floor > 10)
+        // Everything at or above the floor is still there, biggest first.
+        val kept = r.large(1)
+        assertEquals(kept.size, r.pool.size)
+        assertEquals(490L, kept.first().size)
+        assertTrue(kept.all { it.size >= r.pool.floor })
+        assertEquals((0 until 40).count { 100 + it * 10 >= r.pool.floor }, kept.size)
+        // The tree still counts every file.
+        assertEquals(40, r.totalFiles)
     }
 }

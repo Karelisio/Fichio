@@ -316,7 +316,11 @@ private fun FolderContent(
                 val entries = listing.entries
                 val selection = if (isCurrent) pane.selection else emptyMap()
                 val header: @Composable (Modifier) -> Unit = { m ->
-                    FolderHeader(path, listing, volumes, m.drawer(path), pane.receivedTick)
+                    Column {
+                        FolderHeader(path, listing, volumes, m.drawer(path), pane.receivedTick)
+                        // SD card / USB key that java.io cannot write to: offer the SAF grant.
+                        RemovableAccessBanner(path)
+                    }
                 }
                 if (entries.isEmpty()) {
                     Column(Modifier.fillMaxSize()) {

@@ -35,6 +35,10 @@ data class FichioSettings(
     val openImagesInPolaro: Boolean = false,
     val largeFileThresholdMb: Int = 100,
     val oldFileThresholdDays: Int = 365,
+    /** Analysis: smallest old file listed, in KiB. */
+    val oldFileMinKb: Int = 512,
+    /** Analysis: smallest file searched for duplicates, in KiB. */
+    val duplicateMinKb: Int = 100,
     val confirmDelete: Boolean = true,
     val haptics: Boolean = true,
     /** Extra animation toggle on top of the system "remove animations" setting. */
@@ -47,6 +51,8 @@ data class FichioSettings(
     val dualPaneInLandscape: Boolean = true,
     val searchIndexEnabled: Boolean = true,
     val lastIndexRun: Long = 0L,
+    /** How many queued file operations may run at the same time (1–3). */
+    val concurrentOperations: Int = 2,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -64,6 +70,8 @@ class SettingsRepository(private val context: Context) {
         val polaro = booleanPreferencesKey("open_images_polaro")
         val largeMb = intPreferencesKey("large_file_threshold_mb")
         val oldDays = intPreferencesKey("old_file_threshold_days")
+        val oldMinKb = intPreferencesKey("old_file_min_kb")
+        val dupMinKb = intPreferencesKey("duplicate_min_kb")
         val confirmDelete = booleanPreferencesKey("confirm_delete")
         val haptics = booleanPreferencesKey("haptics")
         val reduceMotion = booleanPreferencesKey("reduce_motion")
@@ -75,6 +83,7 @@ class SettingsRepository(private val context: Context) {
         val dualPane = booleanPreferencesKey("dual_pane")
         val index = booleanPreferencesKey("search_index")
         val lastIndex = longPreferencesKey("last_index_run")
+        val concurrentOps = intPreferencesKey("concurrent_operations")
     }
 
     val settings: Flow<FichioSettings> = context.dataStore.data.map { p ->
@@ -95,6 +104,8 @@ class SettingsRepository(private val context: Context) {
             openImagesInPolaro = p[K.polaro] ?: d.openImagesInPolaro,
             largeFileThresholdMb = p[K.largeMb] ?: d.largeFileThresholdMb,
             oldFileThresholdDays = p[K.oldDays] ?: d.oldFileThresholdDays,
+            oldFileMinKb = p[K.oldMinKb] ?: d.oldFileMinKb,
+            duplicateMinKb = p[K.dupMinKb] ?: d.duplicateMinKb,
             confirmDelete = p[K.confirmDelete] ?: d.confirmDelete,
             haptics = p[K.haptics] ?: d.haptics,
             reduceMotion = p[K.reduceMotion] ?: d.reduceMotion,
@@ -106,6 +117,7 @@ class SettingsRepository(private val context: Context) {
             dualPaneInLandscape = p[K.dualPane] ?: d.dualPaneInLandscape,
             searchIndexEnabled = p[K.index] ?: d.searchIndexEnabled,
             lastIndexRun = p[K.lastIndex] ?: d.lastIndexRun,
+            concurrentOperations = (p[K.concurrentOps] ?: d.concurrentOperations).coerceIn(1, MAX_CONCURRENT_OPERATIONS),
         )
     }
 
@@ -124,6 +136,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setOpenImagesInPolaro(v: Boolean) = context.dataStore.edit { it[K.polaro] = v }
     suspend fun setLargeFileThresholdMb(v: Int) = context.dataStore.edit { it[K.largeMb] = v.coerceAtLeast(1) }
     suspend fun setOldFileThresholdDays(v: Int) = context.dataStore.edit { it[K.oldDays] = v.coerceAtLeast(1) }
+    suspend fun setOldFileMinKb(v: Int) = context.dataStore.edit { it[K.oldMinKb] = v.coerceAtLeast(1) }
+    suspend fun setDuplicateMinKb(v: Int) = context.dataStore.edit { it[K.dupMinKb] = v.coerceAtLeast(1) }
     suspend fun setConfirmDelete(v: Boolean) = context.dataStore.edit { it[K.confirmDelete] = v }
     suspend fun setHaptics(v: Boolean) = context.dataStore.edit { it[K.haptics] = v }
     suspend fun setReduceMotion(v: Boolean) = context.dataStore.edit { it[K.reduceMotion] = v }
@@ -135,4 +149,9 @@ class SettingsRepository(private val context: Context) {
     suspend fun setDualPaneInLandscape(v: Boolean) = context.dataStore.edit { it[K.dualPane] = v }
     suspend fun setSearchIndexEnabled(v: Boolean) = context.dataStore.edit { it[K.index] = v }
     suspend fun setLastIndexRun(v: Long) = context.dataStore.edit { it[K.lastIndex] = v }
+    suspend fun setConcurrentOperations(v: Int) = context.dataStore.edit { it[K.concurrentOps] = v.coerceIn(1, MAX_CONCURRENT_OPERATIONS) }
+
+    companion object {
+        const val MAX_CONCURRENT_OPERATIONS = 3
+    }
 }
