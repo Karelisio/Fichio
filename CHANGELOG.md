@@ -3,6 +3,30 @@
 Toutes les évolutions notables de Fichio sont listées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [0.3.0] - 2026-11-18
+
+### Nouveautés
+- Gestes : balayer une ligne pour mettre à la corbeille (gauche) ou partager / ajouter aux favoris (droite) ; pincer pour passer de la liste à la grille et aux grandes miniatures.
+- Recherche dans le contenu des fichiers texte, code et PDF (index local en arrière-plan), avec extraits surlignés.
+- Étiquettes de couleur (7, renommables) sur les fichiers et dossiers, filtre dans la recherche et section sur l'accueil.
+- Dossiers intelligents sur l'accueil : captures d'écran, WhatsApp, téléchargements récents, grandes vidéos, appareil photo.
+- GIF et WebP animés, SVG dans l'aperçu.
+- Jusqu'à 3 opérations en parallèle (réglable), notification regroupée.
+- Analyse du stockage : seuils réglables à la volée, sans rescanner.
+- Transfert Wi-Fi : reprise des téléchargements interrompus.
+- Cartes SD et clés USB : écriture via l'autorisation système quand l'accès direct est refusé.
+- Lecture des archives RAR5.
+- Interface disponible en anglais (choix de langue par appli d'Android 13+), accessibilité TalkBack revue.
+
+### Corrigé
+- Revenir d'un aperçu ramenait le navigateur au dossier de départ.
+
+### Technique
+- Tests instrumentés sur émulateur en CI : aucune release n'est publiée s'ils échouent.
+- Base de données v3 avec migration explicite (aucune perte de données), politique de migration testée.
+- Baseline profile pour un démarrage et un défilement plus fluides, recompositions réduites dans les grands dossiers.
+- L'indexation complète ne tourne qu'en charge.
+
 ## [0.2.3] - 2026-11-18
 
 ### Corrigé
