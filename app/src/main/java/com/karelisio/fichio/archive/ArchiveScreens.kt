@@ -1,5 +1,11 @@
 package com.karelisio.fichio.archive
 
+import com.karelisio.fichio.ui.components.selectionSemantics
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -155,12 +161,12 @@ fun ArchiveScreen(path: String, onBack: () -> Unit, onOpenFolder: (String) -> Un
                 haptics.confirm()
                 val dest = job.destination
                 val r = snackbar.showSnackbar(
-                    "Extraction terminée", actionLabel = if (dest != null) "Ouvrir le dossier" else null,
+                    Strings.get(R.string.archive_extracted), actionLabel = if (dest != null) Strings.get(R.string.common_open_folder) else null,
                     duration = SnackbarDuration.Long,
                 )
                 if (r == SnackbarResult.ActionPerformed && dest != null) onOpenFolder(dest)
             }
-            JobState.FAILED -> snackbar.showSnackbar(job.error ?: "Échec de l'extraction")
+            JobState.FAILED -> snackbar.showSnackbar(job.error ?: Strings.get(R.string.apk_extract_failed))
             else -> Unit
         }
     }
@@ -179,11 +185,11 @@ fun ArchiveScreen(path: String, onBack: () -> Unit, onOpenFolder: (String) -> Un
                         title = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 AnimatedCounter(vm.selection.size.toString(), style = MaterialTheme.typography.titleLarge)
-                                Text(if (vm.selection.size > 1) " sélectionnés" else " sélectionné", style = MaterialTheme.typography.titleLarge)
+                                Text(" " + pluralStringResource(R.plurals.browser_selected_suffix, vm.selection.size), style = MaterialTheme.typography.titleLarge)
                             }
                         },
-                        navigationIcon = { IconButton(onClick = { vm.clearSelection() }) { Icon(Icons.Rounded.Close, "Annuler la sélection") } },
-                        actions = { IconButton(onClick = { haptics.tick(); vm.selectAll() }) { Icon(Icons.Rounded.SelectAll, "Tout sélectionner") } },
+                        navigationIcon = { IconButton(onClick = { vm.clearSelection() }) { Icon(Icons.Rounded.Close, stringResource(R.string.browser_cancel_selection)) } },
+                        actions = { IconButton(onClick = { haptics.tick(); vm.selectAll() }) { Icon(Icons.Rounded.SelectAll, stringResource(R.string.browser_select_all)) } },
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
                     )
                 } else {
@@ -211,7 +217,7 @@ fun ArchiveScreen(path: String, onBack: () -> Unit, onOpenFolder: (String) -> Un
                         }
                     },
                     icon = { Icon(Icons.Rounded.Unarchive, null) },
-                    text = { Text(if (selectionMode) "Extraire (${vm.selection.size})" else "Tout extraire") },
+                    text = { Text(if (selectionMode) stringResource(R.string.archive_extract_count, vm.selection.size) else stringResource(R.string.archive_extract_all)) },
                     expanded = !listState.isScrollInProgress || selectionMode,
                     interactionSource = interaction,
                     modifier = Modifier.pressScale(interaction),
@@ -227,15 +233,15 @@ fun ArchiveScreen(path: String, onBack: () -> Unit, onOpenFolder: (String) -> Un
                 ) {
                     LoadingIndicator(Modifier.size(64.dp))
                     Spacer(Modifier.height(12.dp))
-                    Text("Lecture de l'archive…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.archive_reading), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 ArchiveViewModel.Load.Locked -> EmptyState(
-                    Icons.Rounded.Lock, "Archive protégée", Modifier.align(Alignment.Center),
-                    message = "Le contenu de cette archive est chiffré.",
-                    actionLabel = "Saisir le mot de passe", onAction = { vm.askPassword() },
+                    Icons.Rounded.Lock, stringResource(R.string.archive_protected), Modifier.align(Alignment.Center),
+                    message = stringResource(R.string.archive_encrypted_body),
+                    actionLabel = stringResource(R.string.archive_enter_password), onAction = { vm.askPassword() },
                 )
                 is ArchiveViewModel.Load.Failed -> EmptyState(
-                    Icons.Rounded.ErrorOutline, "Impossible d'ouvrir l'archive", Modifier.align(Alignment.Center),
+                    Icons.Rounded.ErrorOutline, stringResource(R.string.archive_open_failed), Modifier.align(Alignment.Center),
                     message = load.message,
                 )
                 ArchiveViewModel.Load.Ready -> ArchiveContent(vm, listState, onToggle = {
@@ -258,7 +264,7 @@ fun ArchiveScreen(path: String, onBack: () -> Unit, onOpenFolder: (String) -> Un
                         ContainedLoadingIndicator(Modifier.size(40.dp))
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.width(220.dp)) {
-                            Text("Ouverture de ${vm.opening.orEmpty()}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(stringResource(R.string.archive_opening, vm.opening.orEmpty()), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Spacer(Modifier.height(6.dp))
                             LinearWavyProgressIndicator(progress = { vm.openingProgress }, modifier = Modifier.fillMaxWidth())
                         }
@@ -284,7 +290,7 @@ fun ArchiveScreen(path: String, onBack: () -> Unit, onOpenFolder: (String) -> Un
                 showExtract = false
                 vm.clearSelection()
                 jobId = id
-                if (id == null) scope.launch { snackbar.showSnackbar("Impossible de lancer l'extraction") }
+                if (id == null) scope.launch { snackbar.showSnackbar(Strings.get(R.string.apk_extract_start_failed)) }
             },
         )
     }
@@ -306,7 +312,7 @@ private fun ArchiveContent(
         item(key = "crumbs") { Breadcrumbs(vm.file.name, vm.dir, onNavigate = vm::navigate) }
         if (children.isEmpty()) {
             item(key = "empty") {
-                EmptyState(Icons.Rounded.FolderOpen, "Dossier vide", Modifier.padding(top = 24.dp))
+                EmptyState(Icons.Rounded.FolderOpen, stringResource(R.string.browser_empty_folder), Modifier.padding(top = 24.dp))
             }
         }
         itemsIndexed(children, key = { _, it -> it.path }) { index, item ->
@@ -345,26 +351,26 @@ private fun ArchiveHeader(file: File, format: ArchiveFormat?, tree: ArchiveTree,
                     Spacer(Modifier.height(4.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Pill(format?.label ?: "Archive")
-                        if (encrypted) Pill("Chiffrée", Icons.Rounded.Lock, MaterialTheme.colorScheme.tertiaryContainer)
+                        if (encrypted) Pill(stringResource(R.string.archive_encrypted_pill), Icons.Rounded.Lock, MaterialTheme.colorScheme.tertiaryContainer)
                     }
                 }
             }
             Spacer(Modifier.height(16.dp))
             Text(
                 buildString {
-                    append(Format.count(tree.fileCount, "fichier"))
-                    if (tree.folderCount > 0) append(" · ").append(Format.count(tree.folderCount, "dossier"))
+                    append(pluralStringResource(R.plurals.common_files_count, tree.fileCount, tree.fileCount))
+                    if (tree.folderCount > 0) append(" · ").append(pluralStringResource(R.plurals.common_folders_count, tree.folderCount, tree.folderCount))
                 },
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f)) {
-                    Text("Taille réelle", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.archive_real_size), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     AnimatedCounter(Format.size(total), style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold))
                 }
                 Column(Modifier.weight(1f)) {
-                    Text("Compressée", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.archive_compressed), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     AnimatedCounter(Format.size(packed), style = MaterialTheme.typography.headlineSmall)
                 }
                 if (total > 0 && packed < total) {
@@ -476,6 +482,7 @@ private fun ArchiveRow(
             .clip(RoundedCornerShape(corner))
             .background(bg)
             .combinedClickable(interactionSource = interaction, indication = androidx.compose.material3.ripple(), onClick = onClick, onLongClick = onLongClick)
+            .selectionSemantics(selected, onLongClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -498,13 +505,13 @@ private fun ArchiveRow(
                     else -> listOfNotNull(
                         item.size.takeIf { it >= 0 }?.let(Format::size),
                         item.lastModified.takeIf { it > 0 }?.let(Format::shortDate),
-                    ).joinToString(" · ").ifEmpty { "Taille inconnue" }
+                    ).joinToString(" · ").ifEmpty { stringResource(R.string.archive_unknown_size) }
                 },
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (item.isUnsafe) Icon(Icons.Rounded.Warning, "Chemin dangereux, ne sera pas extrait", tint = MaterialTheme.colorScheme.error)
-        else if (item.isEncrypted) Icon(Icons.Rounded.Lock, "Chiffré", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (item.isUnsafe) Icon(Icons.Rounded.Warning, stringResource(R.string.archive_unsafe_path), tint = MaterialTheme.colorScheme.error)
+        else if (item.isEncrypted) Icon(Icons.Rounded.Lock, stringResource(R.string.archive_encrypted_item), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -513,11 +520,17 @@ private fun ArchiveRow(
  * Extraction sheet
  * ==================================================================================== */
 
-private enum class Destination(val label: String) { SUBFOLDER("Dans un nouveau dossier"), SAME("Dans le même dossier"), CUSTOM("Choisir un dossier…") }
+private enum class Destination(@androidx.annotation.StringRes val labelRes: Int) {
+    SUBFOLDER(R.string.archive_dest_subfolder), SAME(R.string.archive_dest_same), CUSTOM(R.string.archive_dest_custom);
 
-private enum class ConflictPolicy(val label: String, val choice: ConflictChoice?) {
-    ASK("Demander", null), REPLACE("Remplacer", ConflictChoice.REPLACE),
-    SKIP("Ignorer", ConflictChoice.SKIP), KEEP_BOTH("Les deux", ConflictChoice.KEEP_BOTH),
+    val label: String get() = Strings.get(labelRes)
+}
+
+private enum class ConflictPolicy(@androidx.annotation.StringRes val labelRes: Int, val choice: ConflictChoice?) {
+    ASK(R.string.archive_conflict_ask, null), REPLACE(R.string.ops_replace, ConflictChoice.REPLACE),
+    SKIP(R.string.ops_skip, ConflictChoice.SKIP), KEEP_BOTH(R.string.archive_conflict_both, ConflictChoice.KEEP_BOTH);
+
+    val label: String get() = Strings.get(labelRes)
 }
 
 /** Extract [archivePath] (all entries) to a chosen folder. */
@@ -584,14 +597,14 @@ internal fun ExtractOptionsSheet(
                 Spacer(Modifier.width(14.dp))
                 Column {
                     Text(
-                        if (selection == null) "Tout extraire" else "Extraire ${Format.items(selection.size)}",
+                        if (selection == null) stringResource(R.string.archive_extract_all) else stringResource(R.string.archive_extract_n, Format.items(selection.size)),
                         style = MaterialTheme.typography.titleLarge,
                     )
                     Text(archive.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
 
-            Text("Destination", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.archive_destination), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Destination.entries.forEach { d ->
                 OptionCard(
                     selected = destination == d,
@@ -600,7 +613,7 @@ internal fun ExtractOptionsSheet(
                     subtitle = when (d) {
                         Destination.SUBFOLDER -> "${File(parent).name}/${subfolder.ifBlank { baseName }}"
                         Destination.SAME -> File(parent).name
-                        Destination.CUSTOM -> customDir?.let { displayPath(it) } ?: "Aucun dossier choisi"
+                        Destination.CUSTOM -> customDir?.let { displayPath(it) } ?: stringResource(R.string.archive_no_folder)
                     },
                 ) {
                     haptics.tick()
@@ -611,20 +624,20 @@ internal fun ExtractOptionsSheet(
             AnimatedVisibility(destination == Destination.SUBFOLDER, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                 OutlinedTextField(
                     value = subfolder, onValueChange = { subfolder = it.replace('/', '_') },
-                    label = { Text("Nom du dossier") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.archive_folder_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
             }
 
-            Text("Si un fichier existe déjà", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.archive_if_exists), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             ConnectedChoice(ConflictPolicy.entries, policy, { it.label }) { haptics.segment(); policy = it }
 
             AnimatedVisibility(needsPassword, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                 PasswordField(
                     value = passwordText,
                     onValueChange = { passwordText = it; wrongPassword = false },
-                    label = "Mot de passe de l'archive",
+                    label = stringResource(R.string.archive_password_label),
                     isError = wrongPassword,
-                    supportingText = if (wrongPassword) "Mot de passe incorrect" else "Cette archive est chiffrée",
+                    supportingText = if (wrongPassword) stringResource(R.string.archive_err_wrong_password) else stringResource(R.string.archive_is_encrypted),
                 )
             }
             AnimatedVisibility(error != null) {
@@ -651,7 +664,7 @@ internal fun ExtractOptionsSheet(
                             }
                         }
                         haptics.confirm()
-                        val title = if (selection == null) "Extraction de ${archive.name}" else "Extraction depuis ${archive.name}"
+                        val title = if (selection == null) Strings.get(R.string.archive_extracting, archive.name) else Strings.get(R.string.archive_extracting_from, archive.name)
                         val fixed = policy.choice
                         val id = context.launchTask(JobKind.EXTRACT, title, listOf(archivePath), dest) {
                             val cb = asExtractCallbacks(archivePath).let { base ->
@@ -662,7 +675,7 @@ internal fun ExtractOptionsSheet(
                             try {
                                 Archives.open(archive, pw).use { r ->
                                     val res = r.extract(ExtractRequest(File(dest), selection, stripPrefix), cb)
-                                    if (res.rejected > 0 && res.extracted == 0) throw ArchiveException("Aucun fichier extrait : chemins dangereux refusés")
+                                    if (res.rejected > 0 && res.extracted == 0) throw ArchiveException(Strings.get(R.string.archive_err_all_unsafe))
                                 }
                             } finally {
                                 context.container.fileSystems.notifyChanged(dest, File(dest).parent ?: dest)
@@ -674,11 +687,11 @@ internal fun ExtractOptionsSheet(
                 },
                 enabled = !busy && (!needsPassword || passwordText.isNotEmpty()) && (destination != Destination.CUSTOM || customDir != null),
                 shapes = ButtonDefaults.shapes(),
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
             ) {
                 if (busy) LoadingIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                 else {
-                    Icon(Icons.Rounded.Unarchive, null); Spacer(Modifier.width(8.dp)); Text("Extraire", style = MaterialTheme.typography.titleMedium)
+                    Icon(Icons.Rounded.Unarchive, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.browser_extract), style = MaterialTheme.typography.titleMedium)
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -796,10 +809,10 @@ fun CompressSheet(entries: List<FileEntry>, destinationDir: String, onDismiss: (
                 }
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Compresser", style = MaterialTheme.typography.titleLarge)
+                    Text(stringResource(R.string.browser_compress), style = MaterialTheme.typography.titleLarge)
                     AnimatedContent(estimate, label = "estimate") { e ->
                         Text(
-                            if (e == null) "Calcul de la taille…" else "${Format.count(e.first, "fichier")} · ${Format.size(e.second)}",
+                            if (e == null) stringResource(R.string.archive_computing_size) else pluralStringResource(R.plurals.common_files_count, e.first, e.first) + " · " + Format.size(e.second),
                             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -808,17 +821,17 @@ fun CompressSheet(entries: List<FileEntry>, destinationDir: String, onDismiss: (
 
             OutlinedTextField(
                 value = name, onValueChange = { name = it },
-                label = { Text("Nom de l'archive") }, singleLine = true,
+                label = { Text(stringResource(R.string.archive_name)) }, singleLine = true,
                 suffix = { Text(".${format.extension}") },
                 isError = cleanName.isEmpty(),
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Text("Format", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.archive_format), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             ConnectedChoice(OutputFormat.entries, format, { it.label }) { haptics.segment(); format = it }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Compression", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.archive_compression), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
                 AnimatedContent(ArchiveWriter.levelLabel(level.roundToInt()), label = "level") { l ->
                     Text(l, style = MaterialTheme.typography.labelLarge)
                 }
@@ -834,7 +847,7 @@ fun CompressSheet(entries: List<FileEntry>, destinationDir: String, onDismiss: (
                 steps = ArchiveWriter.MAX_LEVEL - ArchiveWriter.MIN_LEVEL - 1,
             )
             Row(Modifier.fillMaxWidth()) {
-                listOf("Stockage", "Normal", "Ultra").forEachIndexed { i, l ->
+                listOf(stringResource(R.string.archive_level_store), stringResource(R.string.archive_level_normal), stringResource(R.string.archive_level_ultra)).forEachIndexed { i, l ->
                     Text(
                         l, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
@@ -849,9 +862,9 @@ fun CompressSheet(entries: List<FileEntry>, destinationDir: String, onDismiss: (
                         Icon(Icons.Rounded.Lock, null)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Protéger par mot de passe", style = MaterialTheme.typography.bodyLarge)
+                            Text(stringResource(R.string.archive_protect), style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                if (canEncrypt) "Chiffrement AES-256" else "Indisponible en 7z (choisissez ZIP)",
+                                if (canEncrypt) stringResource(R.string.archive_aes) else stringResource(R.string.archive_no_7z_encrypt),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -859,10 +872,10 @@ fun CompressSheet(entries: List<FileEntry>, destinationDir: String, onDismiss: (
                     }
                     AnimatedVisibility(encrypt && canEncrypt, enter = expandVertically(bouncy()) + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            PasswordField(password, { password = it }, "Mot de passe", imeAction = androidx.compose.ui.text.input.ImeAction.Next)
+                            PasswordField(password, { password = it }, stringResource(R.string.archive_password), imeAction = androidx.compose.ui.text.input.ImeAction.Next)
                             PasswordField(
-                                confirm, { confirm = it }, "Confirmer le mot de passe",
-                                isError = mismatch, supportingText = if (mismatch) "Les mots de passe ne correspondent pas" else null,
+                                confirm, { confirm = it }, stringResource(R.string.archive_confirm_password),
+                                isError = mismatch, supportingText = if (mismatch) stringResource(R.string.archive_password_mismatch) else null,
                             )
                         }
                     }
@@ -870,7 +883,7 @@ fun CompressSheet(entries: List<FileEntry>, destinationDir: String, onDismiss: (
                         Icon(Icons.Rounded.Info, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            "Fichio ne sait pas chiffrer les archives 7z.",
+                            stringResource(R.string.archive_7z_cant_encrypt),
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -878,7 +891,7 @@ fun CompressSheet(entries: List<FileEntry>, destinationDir: String, onDismiss: (
             }
 
             Text(
-                "Destination : ${displayPath(destinationDir)}",
+                stringResource(R.string.archive_destination_path, displayPath(destinationDir)),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2, overflow = TextOverflow.Ellipsis,
             )
@@ -892,7 +905,7 @@ fun CompressSheet(entries: List<FileEntry>, destinationDir: String, onDismiss: (
                         if (encrypt && canEncrypt) password.toCharArray() else null,
                     )
                     val paths = entries.map { it.path }
-                    val id = context.launchTask(JobKind.COMPRESS, "Compression de $fileName", paths, destinationDir) {
+                    val id = context.launchTask(JobKind.COMPRESS, Strings.get(R.string.archive_compressing, fileName), paths, destinationDir) {
                         var out = File(destinationDir, fileName)
                         if (out.exists()) {
                             val choice = askConflict(
@@ -911,14 +924,14 @@ fun CompressSheet(entries: List<FileEntry>, destinationDir: String, onDismiss: (
                             context.container.fileSystems.notifyChanged(destinationDir)
                         }
                     }
-                    if (id == null) android.widget.Toast.makeText(context, "Impossible de lancer la compression", android.widget.Toast.LENGTH_SHORT).show()
+                    if (id == null) android.widget.Toast.makeText(context, Strings.get(R.string.archive_compress_start_failed), android.widget.Toast.LENGTH_SHORT).show()
                     onDismiss()
                 },
                 enabled = valid,
                 shapes = ButtonDefaults.shapes(),
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
             ) {
-                Icon(Icons.Rounded.Archive, null); Spacer(Modifier.width(8.dp)); Text("Compresser", style = MaterialTheme.typography.titleMedium)
+                Icon(Icons.Rounded.Archive, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.browser_compress), style = MaterialTheme.typography.titleMedium)
             }
             Spacer(Modifier.height(8.dp))
         }

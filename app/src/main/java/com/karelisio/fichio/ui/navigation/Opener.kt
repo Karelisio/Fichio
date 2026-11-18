@@ -1,5 +1,7 @@
 package com.karelisio.fichio.ui.navigation
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Context
@@ -28,10 +30,10 @@ object Opener {
     fun uriFor(context: Context, path: String): Uri =
         FileProvider.getUriForFile(context, "${context.packageName}.provider", File(path))
 
-    /** "Ouvrir avec": the default app, or a chooser when [chooser] is true. */
+    /** Strings.get(R.string.open_with): the default app, or a chooser when [chooser] is true. */
     fun openExternally(context: Context, path: String, chooser: Boolean = false, mime: String? = null): Boolean {
         val uri = runCatching { uriFor(context, path) }.getOrElse {
-            Toast.makeText(context, "Impossible de partager ce fichier", Toast.LENGTH_SHORT).show(); return false
+            Toast.makeText(context, Strings.get(R.string.open_share_failed), Toast.LENGTH_SHORT).show(); return false
         }
         val type = mime ?: FileTypes.mimeOfName(path)
         val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -40,11 +42,11 @@ object Opener {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         return try {
-            context.startActivity(if (chooser) Intent.createChooser(intent, "Ouvrir avec").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) else intent)
+            context.startActivity(if (chooser) Intent.createChooser(intent, Strings.get(R.string.open_with)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) else intent)
             true
         } catch (_: ActivityNotFoundException) {
             if (!chooser) openExternally(context, path, chooser = true, mime = "*/*")
-            else { Toast.makeText(context, "Aucune appli ne peut ouvrir ce fichier", Toast.LENGTH_SHORT).show(); false }
+            else { Toast.makeText(context, Strings.get(R.string.open_no_app), Toast.LENGTH_SHORT).show(); false }
         }
     }
 
@@ -72,6 +74,6 @@ object Opener {
         intent.type = mime
         intent.clipData = ClipData.newRawUri(null, uris[0]).also { c -> uris.drop(1).forEach { c.addItem(ClipData.Item(it)) } }
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        context.startActivity(Intent.createChooser(intent, "Partager").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        context.startActivity(Intent.createChooser(intent, Strings.get(R.string.common_share)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }

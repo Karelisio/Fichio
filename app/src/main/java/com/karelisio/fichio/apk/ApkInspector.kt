@@ -1,5 +1,7 @@
 package com.karelisio.fichio.apk
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
@@ -123,7 +125,7 @@ object ApkInspector {
 
     suspend fun inspect(context: Context, path: String): ApkDetails = withContext(Dispatchers.IO) {
         val file = File(path)
-        if (!file.isFile) throw ApkParseException("Fichier introuvable")
+        if (!file.isFile) throw ApkParseException(Strings.get(R.string.apk_err_file_not_found))
         if (isBundle(path)) inspectBundle(context, file) else inspectApk(context, file, file)
     }
 
@@ -136,9 +138,9 @@ object ApkInspector {
                     .toList()
             }
         } catch (e: Exception) {
-            throw ApkParseException("Paquet illisible (archive endommagée ou chiffrée)", e)
+            throw ApkParseException(Strings.get(R.string.apk_err_unreadable), e)
         }
-        if (apkEntries.isEmpty()) throw ApkParseException("Aucun APK trouvé dans ce paquet")
+        if (apkEntries.isEmpty()) throw ApkParseException(Strings.get(R.string.apk_err_no_apk))
         val splits = SplitSelector.classifyAll(apkEntries)
         val base = splits.first { it.kind == SplitKind.BASE }
 
@@ -166,8 +168,8 @@ object ApkInspector {
 
     private fun inspectApk(context: Context, apk: File, original: File): ApkDetails {
         val pm = context.packageManager
-        val info = archiveInfo(pm, apk) ?: throw ApkParseException("APK invalide ou endommagé")
-        val app: ApplicationInfo = info.applicationInfo ?: throw ApkParseException("APK sans application")
+        val info = archiveInfo(pm, apk) ?: throw ApkParseException(Strings.get(R.string.apk_err_invalid))
+        val app: ApplicationInfo = info.applicationInfo ?: throw ApkParseException(Strings.get(R.string.apk_err_no_app))
         // Resources are only reachable once the source dir points at the archive.
         app.sourceDir = apk.absolutePath
         app.publicSourceDir = apk.absolutePath

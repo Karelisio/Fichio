@@ -1,5 +1,7 @@
 package com.karelisio.fichio.analysis
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -248,7 +250,7 @@ class StorageAnalyzer(
         }
         if (rootFilesCount > 0) children += filesNode(root, rootFilesSize, rootFilesCount)
         children.sortByDescending { it.size }
-        val tree = DirNode(root, "Stockage interne", children.sumOf { it.size }, children.sumOf { it.fileCount }, children)
+        val tree = DirNode(root, Strings.get(R.string.storage_internal), children.sumOf { it.size }, children.sumOf { it.fileCount }, children)
 
         val pool = FilePool.merge(accs.map { it.pool }, config.poolCap)
         val histogram = SizeHistogram().also { h -> accs.forEach { h.addAll(it.histogram) } }
@@ -309,7 +311,7 @@ class StorageAnalyzer(
     }
 
     private fun filesNode(dir: String, size: Long, count: Int) =
-        DirNode("$dir/*", "Fichiers", size, count, emptyList(), NodeKind.FILES, dirPath = dir)
+        DirNode("$dir/*", Strings.get(R.string.analysis_files), size, count, emptyList(), NodeKind.FILES, dirPath = dir)
 
     private fun collect(acc: Acc, dirId: Int, path: Path, size: Long, mtime: Long, progress: Progress) {
         progress.files.incrementAndGet()

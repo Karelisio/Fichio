@@ -1,5 +1,6 @@
 package com.karelisio.fichio.widget
 
+import com.karelisio.fichio.core.util.Strings
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -172,7 +173,7 @@ private fun GaugeRow(data: WidgetData, ringDp: Int) {
                 Text(num, style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 30.sp, fontWeight = FontWeight.Bold))
                 Text(" $unit", style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 16.sp, fontWeight = FontWeight.Medium))
             }
-            Text("libres sur ${Format.size(data.total)}", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp))
+            Text(Strings.get(R.string.widget_free_of, Format.size(data.total)), style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp))
         }
     }
 }
@@ -185,7 +186,7 @@ private fun Gauge(data: WidgetData, ringDp: Int, compact: Boolean) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             val (num, unit) = Format.sizeParts(data.free)
             Text(num, style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = if (compact) 20.sp else 26.sp, fontWeight = FontWeight.Bold))
-            Text("$unit libres", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp))
+            Text(Strings.get(R.string.widget_unit_free, unit), style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp))
         }
     }
 }
@@ -198,7 +199,7 @@ private fun Ring(data: WidgetData, ringDp: Int) {
     val bitmap = ringBitmap(context, ringDp, data.usedFraction, primary, track)
     Image(
         provider = ImageProvider(bitmap),
-        contentDescription = "${(data.usedFraction * 100).toInt()} % utilisés",
+        contentDescription = Strings.get(R.string.widget_used_percent, (data.usedFraction * 100).toInt()),
         modifier = GlanceModifier.size(ringDp.dp),
     )
 }
@@ -208,7 +209,7 @@ private fun FavoriteList(favs: List<Pair<String, String>>, columns: Int) {
     val context = LocalContext.current
     if (favs.isEmpty()) {
         Text(
-            "Ajoutez des favoris dans Fichio pour les retrouver ici",
+            Strings.get(R.string.widget_no_favorites),
             style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp),
         )
         return

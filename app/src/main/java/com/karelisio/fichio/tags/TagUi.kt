@@ -1,5 +1,10 @@
 package com.karelisio.fichio.tags
 
+import androidx.compose.foundation.selection.triStateToggleable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -146,9 +151,9 @@ fun TagAssignSheet(paths: List<String>, onDismiss: () -> Unit) {
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {
         Column(Modifier.padding(horizontal = 12.dp).padding(bottom = 16.dp).navigationBarsPadding()) {
-            Text("Étiquettes", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 12.dp))
+            Text(stringResource(R.string.home_tags), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 12.dp))
             Text(
-                if (paths.size == 1) "Touchez une couleur pour l'ajouter ou la retirer." else "Pour ${Format.items(paths.size)} : touchez pour ajouter ou retirer.",
+                if (paths.size == 1) stringResource(R.string.tag_sheet_one) else stringResource(R.string.tag_sheet_many, Format.items(paths.size)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -170,7 +175,7 @@ fun TagAssignSheet(paths: List<String>, onDismiss: () -> Unit) {
                 )
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDismiss) { Text("Terminé") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_done)) }
             }
         }
     }
@@ -192,7 +197,11 @@ private fun TagRow(tag: Tag, state: Int, onToggle: () -> Unit, onRename: () -> U
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onToggle)
+            .triStateToggleable(
+                state = when (state) { 2 -> ToggleableState.On; 1 -> ToggleableState.Indeterminate; else -> ToggleableState.Off },
+                role = Role.Checkbox,
+                onClick = onToggle,
+            )
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -207,8 +216,8 @@ private fun TagRow(tag: Tag, state: Int, onToggle: () -> Unit, onRename: () -> U
         ) {
             AnimatedContent(state, transitionSpec = { (scaleIn(bouncy()) + fadeIn()) togetherWith (scaleOut() + fadeOut()) }, label = "tagState") { s ->
                 when (s) {
-                    2 -> Icon(Icons.Rounded.Check, "Attribuée", tint = Color.White, modifier = Modifier.size(18.dp))
-                    1 -> Icon(Icons.Rounded.Remove, "Attribuée en partie", tint = Color.White, modifier = Modifier.size(18.dp))
+                    2 -> Icon(Icons.Rounded.Check, stringResource(R.string.tag_assigned), tint = Color.White, modifier = Modifier.size(18.dp))
+                    1 -> Icon(Icons.Rounded.Remove, stringResource(R.string.tag_partly_assigned), tint = Color.White, modifier = Modifier.size(18.dp))
                     else -> Spacer(Modifier.size(18.dp))
                 }
             }
@@ -218,7 +227,7 @@ private fun TagRow(tag: Tag, state: Int, onToggle: () -> Unit, onRename: () -> U
             Text(tag.displayName, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (tag.count > 0) Text(Format.items(tag.count), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        IconButton(onClick = onRename) { Icon(Icons.Rounded.Edit, "Renommer l'étiquette", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+        IconButton(onClick = onRename) { Icon(Icons.Rounded.Edit, stringResource(R.string.tag_rename), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 
@@ -228,19 +237,19 @@ fun RenameTagDialog(tag: Tag, onDismiss: () -> Unit, onRename: (String) -> Unit)
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Box(Modifier.size(24.dp).clip(CircleShape).background(tagColor(tag.slot))) },
-        title = { Text("Renommer l'étiquette") },
+        title = { Text(stringResource(R.string.tag_rename)) },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it.take(TagsRepository.MAX_NAME) },
                 singleLine = true,
-                label = { Text("Nom") },
+                label = { Text(stringResource(R.string.common_name)) },
                 placeholder = { Text(TagPalette.defaultName(tag.slot)) },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { onRename(name) }),
             )
         },
-        confirmButton = { TextButton(onClick = { onRename(name) }) { Text("Renommer") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+        confirmButton = { TextButton(onClick = { onRename(name) }) { Text(stringResource(R.string.common_rename)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }

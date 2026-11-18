@@ -31,7 +31,7 @@ import java.io.File
 
 /** Queue, conflicts, renames and undo through the real manager (Robolectric for the Context). */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(sdk = [35], application = Application::class, qualifiers = "fr")
 class OperationManagerTest {
     @get:Rule val tmp = TemporaryFolder()
     private lateinit var db: FichioDatabase
@@ -44,6 +44,7 @@ class OperationManagerTest {
     @Before
     fun setUp() {
         ctx = ApplicationProvider.getApplicationContext<Application>()
+        com.karelisio.fichio.core.util.Strings.init(ctx)
         db = FichioDatabase.inMemory(ctx)
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         fs = FileSystems(LocalBackend())

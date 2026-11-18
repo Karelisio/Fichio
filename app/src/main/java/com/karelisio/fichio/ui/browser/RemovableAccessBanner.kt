@@ -2,6 +2,9 @@
 
 package com.karelisio.fichio.ui.browser
 
+import com.karelisio.fichio.core.util.Strings
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -80,9 +83,9 @@ internal fun RemovableAccessBanner(path: String, modifier: Modifier = Modifier) 
         scope.launch {
             message = when (saf.onTreePicked(volume, uri)) {
                 SafAccess.GrantResult.OK -> { haptics.confirm(); null }
-                SafAccess.GrantResult.NOT_ROOT -> { haptics.confirm(); "Accès accordé à ce dossier seulement. Choisissez la racine de « ${volume.label} » pour tout le volume." }
-                SafAccess.GrantResult.WRONG_VOLUME -> { haptics.reject(); "Ce dossier n'est pas sur « ${volume.label} ». Sélectionnez la racine du volume." }
-                SafAccess.GrantResult.FAILED -> { haptics.reject(); "Android a refusé l'accès. Réessayez." }
+                SafAccess.GrantResult.NOT_ROOT -> { haptics.confirm(); Strings.get(R.string.saf_granted_not_root, volume.label) }
+                SafAccess.GrantResult.WRONG_VOLUME -> { haptics.reject(); Strings.get(R.string.saf_wrong_volume, volume.label) }
+                SafAccess.GrantResult.FAILED -> { haptics.reject(); Strings.get(R.string.saf_refused) }
             }
         }
     }
@@ -110,12 +113,12 @@ internal fun RemovableAccessBanner(path: String, modifier: Modifier = Modifier) 
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            if (state == VolumeWriteAccess.READ_ONLY) "« ${volume.label} » est en lecture seule" else volume.label,
+                            if (state == VolumeWriteAccess.READ_ONLY) stringResource(R.string.saf_read_only, volume.label) else volume.label,
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onTertiaryContainer,
                         )
                         Text(
-                            message ?: "Android limite l'écriture hors du stockage interne. Autorisez Fichio sur ce volume pour copier, renommer ou supprimer.",
+                            message ?: stringResource(R.string.saf_explain),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onTertiaryContainer,
                         )
@@ -129,13 +132,13 @@ internal fun RemovableAccessBanner(path: String, modifier: Modifier = Modifier) 
                                 haptics.click()
                                 message = null
                                 runCatching { picker.launch(saf.openTreeIntent(volume)) }
-                                    .onFailure { haptics.reject(); message = "Le sélecteur de dossiers du système est indisponible." }
+                                    .onFailure { haptics.reject(); message = Strings.get(R.string.saf_picker_unavailable) }
                             },
                             shapes = ButtonDefaults.shapes(),
                         ) {
                             Icon(Icons.Rounded.LockOpen, null, Modifier.size(ButtonDefaults.IconSize))
                             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("Autoriser l'écriture")
+                            Text(stringResource(R.string.saf_allow_write))
                         }
                     }
                 }

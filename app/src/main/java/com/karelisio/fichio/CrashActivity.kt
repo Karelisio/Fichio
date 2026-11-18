@@ -1,5 +1,6 @@
 package com.karelisio.fichio
 
+import com.karelisio.fichio.core.util.Strings
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -29,31 +30,31 @@ class CrashActivity : Activity() {
             setPadding(pad, pad * 3, pad, pad)
         }
         root.addView(TextView(this).apply {
-            text = "Fichio s'est fermé à cause d'une erreur"
+            text = Strings.get(R.string.crash_closed_title)
             textSize = 20f
             setTypeface(typeface, Typeface.BOLD)
         })
         root.addView(TextView(this).apply {
-            text = "Le rapport reste sur ton téléphone. Copie-le ou partage-le pour qu'on puisse corriger le problème."
+            text = Strings.get(R.string.crash_closed_body)
             setPadding(0, pad / 2, 0, pad / 2)
         })
         val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         buttons.addView(Button(this).apply {
-            text = "Copier"
+            text = Strings.get(R.string.common_copy)
             setOnClickListener {
-                getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Rapport Fichio", report))
-                Toast.makeText(this@CrashActivity, "Rapport copié", Toast.LENGTH_SHORT).show()
+                getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText(Strings.get(R.string.crash_report_clip), report))
+                Toast.makeText(this@CrashActivity, Strings.get(R.string.crash_report_copied), Toast.LENGTH_SHORT).show()
             }
         })
         buttons.addView(Button(this).apply {
-            text = "Partager"
+            text = Strings.get(R.string.common_share)
             setOnClickListener {
                 val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, report)
-                startActivity(Intent.createChooser(send, "Partager le rapport"))
+                startActivity(Intent.createChooser(send, Strings.get(R.string.crash_share_report)))
             }
         })
         buttons.addView(Button(this).apply {
-            text = "Relancer"
+            text = Strings.get(R.string.crash_relaunch)
             setOnClickListener { CrashLog.clear(this@CrashActivity); relaunch() }
         })
         root.addView(buttons)

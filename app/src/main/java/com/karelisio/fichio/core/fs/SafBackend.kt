@@ -1,5 +1,7 @@
 package com.karelisio.fichio.core.fs
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.content.Context
 import android.net.Uri
 import android.os.StatFs
@@ -34,7 +36,7 @@ class SafBackend(
 
     private fun docId(path: String): String =
         SafPaths.documentIdFor(volumeRoot, volumeId, treeDocId, path)
-            ?: throw IOException("« ${StoragePaths.name(path)} » est hors du dossier autorisé")
+            ?: throw IOException(Strings.get(R.string.saf_err_outside, StoragePaths.name(path)))
 
     private fun uri(path: String): Uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId(path))
 
@@ -44,7 +46,7 @@ class SafBackend(
         throw e
     } catch (e: Exception) {
         // SecurityException (permission revoked), IllegalArgumentException / IllegalStateException from the provider.
-        throw IOException(e.message ?: "Accès au volume refusé", e)
+        throw IOException(e.message ?: Strings.get(R.string.saf_err_denied), e)
     }
 
     // ------------------------------------------------------------------ reads
@@ -60,7 +62,7 @@ class SafBackend(
                 val name = c.getString(0) ?: continue
                 out += entry(StoragePaths.join(path, name), name, c.getString(1), c.getLong(2), c.getLong(3))
             }
-        } ?: throw IOException("Impossible de lire $path")
+        } ?: throw IOException(Strings.get(R.string.fs_err_read, path))
         return out
     }
 
@@ -83,18 +85,18 @@ class SafBackend(
     override fun openInput(path: String): InputStream = try {
         local.openInput(path)
     } catch (_: IOException) {
-        io { resolver.openInputStream(uri(path)) ?: throw IOException("Impossible d'ouvrir ${StoragePaths.name(path)}") }
+        io { resolver.openInputStream(uri(path)) ?: throw IOException(Strings.get(R.string.fs_err_open, StoragePaths.name(path))) }
     }
 
     // ------------------------------------------------------------------ writes
 
     override fun openOutput(path: String, append: Boolean): OutputStream = io {
         if (!exists(path)) {
-            if (!mkdirs(StoragePaths.parent(path))) throw IOException("Impossible de créer le dossier de ${StoragePaths.name(path)}")
-            if (!createFile(path)) throw IOException("Impossible de créer ${StoragePaths.name(path)}")
+            if (!mkdirs(StoragePaths.parent(path))) throw IOException(Strings.get(R.string.saf_err_mkdir_for, StoragePaths.name(path)))
+            if (!createFile(path)) throw IOException(Strings.get(R.string.saf_err_create, StoragePaths.name(path)))
         }
         resolver.openOutputStream(uri(path), if (append) "wa" else "wt")
-            ?: throw IOException("Impossible d'écrire ${StoragePaths.name(path)}")
+            ?: throw IOException(Strings.get(R.string.fs_err_write, StoragePaths.name(path)))
     }
 
     override fun mkdirs(path: String): Boolean = runCatching {

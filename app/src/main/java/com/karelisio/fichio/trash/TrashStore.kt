@@ -1,5 +1,7 @@
 package com.karelisio.fichio.trash
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import com.karelisio.fichio.core.fs.FileBackend
 import com.karelisio.fichio.data.db.TrashDao
 import com.karelisio.fichio.data.db.TrashEntity
@@ -62,10 +64,10 @@ class TrashStore(
     /** Moves [path] to the trash and records it. */
     suspend fun moveToTrash(path: String, listener: EngineListener = EngineListener.None): TrashEntity = withContext(io) {
         val trashRoot = root()
-        if (PathUtil.isSameOrInside(path, trashRoot)) throw OperationException("Cet élément est déjà dans la corbeille")
-        if (PathUtil.isSameOrInside(trashRoot, path)) throw OperationException("Impossible de mettre à la corbeille un dossier qui la contient")
+        if (PathUtil.isSameOrInside(path, trashRoot)) throw OperationException(Strings.get(R.string.trash_err_already))
+        if (PathUtil.isSameOrInside(trashRoot, path)) throw OperationException(Strings.get(R.string.trash_err_contains))
         val srcB = backendFor(path)
-        val entry = srcB.stat(path) ?: throw IOException("« ${PathUtil.name(path)} » est introuvable")
+        val entry = srcB.stat(path) ?: throw IOException(Strings.get(R.string.trash_err_not_found, PathUtil.name(path)))
         ensureRoot(trashRoot)
 
         val id = newId()
@@ -83,7 +85,7 @@ class TrashStore(
                 if (r.failed > 0 || !trashB.exists(dest)) {
                     // Nothing (or only part) reached the trash: undo the attempt, keep the original.
                     trashB.deleteRecursively(itemDir)
-                    throw IOException(r.errors.firstOrNull() ?: "Impossible de mettre « ${entry.name} » à la corbeille")
+                    throw IOException(r.errors.firstOrNull() ?: Strings.get(R.string.trash_err_move, entry.name))
                 }
             }
         }
@@ -97,18 +99,18 @@ class TrashStore(
             deletedAt = now(),
         )
         meta.insert(item)
-        if (!moved) throw IOException("« ${entry.name} » a été copié dans la corbeille mais l'original n'a pas pu être entièrement supprimé")
+        if (!moved) throw IOException(Strings.get(R.string.trash_err_original_kept, entry.name))
         item
     }
 
     /** Restores [id] to its original path (parents recreated, both kept on conflict). Returns the final path. */
     suspend fun restore(id: String, listener: EngineListener = EngineListener.None): Result<String> = runCatching {
         withContext(io) {
-            val item = meta.get(id) ?: throw IOException("Élément introuvable dans la corbeille")
+            val item = meta.get(id) ?: throw IOException(Strings.get(R.string.trash_err_item_missing))
             val trashB = backendFor(item.trashPath)
             if (!trashB.exists(item.trashPath)) {
                 meta.delete(id)
-                throw IOException("« ${item.name} » n'existe plus dans la corbeille")
+                throw IOException(Strings.get(R.string.trash_err_gone, item.name))
             }
             val parent = PathUtil.parent(item.originalPath)
             val targetB = backendFor(item.originalPath)
@@ -120,7 +122,7 @@ class TrashStore(
             if (!targetB.rename(item.trashPath, target)) {
                 val r = engine.moveExact(listOf(item.trashPath to target), listener)
                 if (trashB.exists(item.trashPath)) {
-                    throw IOException(r.errors.firstOrNull() ?: "Impossible de restaurer « ${item.name} »")
+                    throw IOException(r.errors.firstOrNull() ?: Strings.get(R.string.trash_err_restore, item.name))
                 }
                 target = r.transfers.firstOrNull()?.to ?: target
             }
@@ -180,7 +182,7 @@ class TrashStore(
 
     private fun ensureRoot(trashRoot: String) {
         val b = backendFor(trashRoot)
-        if (!b.mkdirs(trashRoot)) throw IOException("Impossible de créer le dossier de la corbeille")
+        if (!b.mkdirs(trashRoot)) throw IOException(Strings.get(R.string.trash_err_create))
         for (dir in listOf(PathUtil.parent(trashRoot), trashRoot)) {
             val nomedia = PathUtil.join(dir, ".nomedia")
             if (!b.exists(nomedia)) b.createFile(nomedia)

@@ -1,5 +1,9 @@
 package com.karelisio.fichio.transfer
 
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.R
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -151,7 +155,7 @@ fun TransferScreen(onBack: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Transfert local") }, navigationIcon = { BackButton(onBack) }) },
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.channel_transfer)) }, navigationIcon = { BackButton(onBack) }) },
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize(),
@@ -168,21 +172,21 @@ fun TransferScreen(onBack: () -> Unit) {
                     ) {
                         NoticeCard(
                             Icons.Rounded.WifiOff,
-                            "Pas de Wi-Fi",
-                            "Connectez le téléphone et l'ordinateur au même réseau Wi-Fi, ou activez le point d'accès du téléphone.",
+                            stringResource(R.string.transfer_no_wifi),
+                            stringResource(R.string.transfer_no_wifi_body),
                             MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer,
                         )
                     }
                     AnimatedVisibility(s is TransferState.Error, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                         NoticeCard(
-                            Icons.Rounded.Block, "Transfert impossible", (s as? TransferState.Error)?.message.orEmpty(),
+                            Icons.Rounded.Block, stringResource(R.string.transfer_impossible), (s as? TransferState.Error)?.message.orEmpty(),
                             MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer,
                         )
                     }
                     val reason = (s as? TransferState.Stopped)?.reason
                     AnimatedVisibility(reason != null, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                         NoticeCard(
-                            Icons.Rounded.Info, "Transfert arrêté", reason.orEmpty(),
+                            Icons.Rounded.Info, stringResource(R.string.transfer_stopped), reason.orEmpty(),
                             MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                     }
@@ -211,15 +215,14 @@ fun TransferScreen(onBack: () -> Unit) {
             item(key = "info") {
                 NoticeCard(
                     Icons.Rounded.Info,
-                    "Comment ça marche",
-                    "Ouvrez l'adresse dans le navigateur d'un ordinateur du même réseau, ou scannez le QR code. " +
-                        "Android/data, Android/obb et la corbeille Fichio ne sont pas accessibles par ce biais.",
+                    stringResource(R.string.transfer_how),
+                    stringResource(R.string.transfer_how_body),
                     MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             item(key = "logHeader") {
-                SectionHeader("Journal des transferts", trailing = {
+                SectionHeader(stringResource(R.string.transfer_log), trailing = {
                     AnimatedVisibility(log.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
                         TextButton(onClick = {
                             haptics.click()
@@ -227,14 +230,14 @@ fun TransferScreen(onBack: () -> Unit) {
                         }) {
                             Icon(Icons.Rounded.DeleteSweep, null, Modifier.size(ButtonDefaults.IconSize))
                             Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                            Text("Effacer")
+                            Text(stringResource(R.string.search_clear))
                         }
                     }
                 })
             }
             if (log.isEmpty()) {
                 item(key = "logEmpty") {
-                    EmptyState(Icons.Rounded.Devices, "Aucun échange pour l'instant", message = "Connexions, envois et téléchargements apparaîtront ici.")
+                    EmptyState(Icons.Rounded.Devices, stringResource(R.string.transfer_log_empty), message = stringResource(R.string.transfer_log_empty_body))
                 }
             }
             itemsIndexed(log, key = { _, e -> e.id }) { i, e ->
@@ -279,7 +282,7 @@ private fun PowerToggle(state: TransferState, onClick: () -> Unit) {
                 .size(176.dp)
                 .popOn(active)
                 .pressScale(interaction, 0.9f)
-                .clickable(interactionSource = interaction, indication = null, role = Role.Switch, onClick = onClick),
+                .toggleable(value = active, interactionSource = interaction, indication = null, role = Role.Switch) { onClick() },
         ) {
             AnimatedContent(
                 targetState = when { starting -> 1; active -> 2; else -> 0 },
@@ -288,8 +291,8 @@ private fun PowerToggle(state: TransferState, onClick: () -> Unit) {
             ) { s ->
                 when (s) {
                     1 -> LoadingIndicator(Modifier.size(72.dp), color = content)
-                    2 -> Icon(Icons.Rounded.WifiTethering, "Arrêter", Modifier.size(72.dp), tint = content)
-                    else -> Icon(Icons.Rounded.PowerSettingsNew, "Démarrer", Modifier.size(72.dp), tint = content)
+                    2 -> Icon(Icons.Rounded.WifiTethering, stringResource(R.string.audio_stop), Modifier.size(72.dp), tint = content)
+                    else -> Icon(Icons.Rounded.PowerSettingsNew, stringResource(R.string.transfer_start), Modifier.size(72.dp), tint = content)
                 }
             }
         }
@@ -297,11 +300,11 @@ private fun PowerToggle(state: TransferState, onClick: () -> Unit) {
         AnimatedContent(targetState = Pair(active, starting), label = "powerLabel") { (a, st) ->
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    when { st -> "Démarrage…"; a -> "Transfert actif"; else -> "Démarrer le transfert" },
+                    when { st -> stringResource(R.string.transfer_starting); a -> stringResource(R.string.transfer_active); else -> stringResource(R.string.transfer_start_transfer) },
                     style = MaterialTheme.typography.headlineSmall,
                 )
                 Text(
-                    when { st -> "Ouverture du serveur local"; a -> "Touchez pour arrêter"; else -> "Partagez vos fichiers avec un ordinateur en Wi-Fi" },
+                    when { st -> stringResource(R.string.transfer_opening_server); a -> stringResource(R.string.transfer_tap_to_stop); else -> stringResource(R.string.transfer_share_with_pc) },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -328,7 +331,7 @@ private fun ActivePanel(a: TransferState.Active, remainingMs: Long, onNewCode: (
             ) {
                 if (qr != null) {
                     Image(
-                        qr, "QR code de connexion",
+                        qr, stringResource(R.string.transfer_qr),
                         Modifier.fillMaxSize(),
                         filterQuality = FilterQuality.None,
                         alpha = usedAlpha,
@@ -348,11 +351,11 @@ private fun ActivePanel(a: TransferState.Active, remainingMs: Long, onNewCode: (
                     )
                 }
             }
-            Text("http:// dans le navigateur de l'ordinateur", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.transfer_in_browser), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(20.dp))
             Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(vertical = 18.dp, horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Code d'accès à usage unique", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(stringResource(R.string.transfer_one_time_code), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     AnimatedContent(a.code, label = "code") { code ->
                         if (code != null) {
                             AnimatedCounter(
@@ -362,7 +365,7 @@ private fun ActivePanel(a: TransferState.Active, remainingMs: Long, onNewCode: (
                         } else {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    "Code utilisé",
+                                    stringResource(R.string.transfer_code_used),
                                     style = MaterialTheme.typography.headlineSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     modifier = Modifier.padding(vertical = 8.dp),
@@ -370,14 +373,14 @@ private fun ActivePanel(a: TransferState.Active, remainingMs: Long, onNewCode: (
                                 FilledTonalButton(onClick = onNewCode, shapes = ButtonDefaults.shapes()) {
                                     Icon(Icons.Rounded.Refresh, null, Modifier.size(ButtonDefaults.IconSize))
                                     Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                                    Text("Nouveau code")
+                                    Text(stringResource(R.string.transfer_new_code))
                                 }
                             }
                         }
                     }
                     if (a.sessions > 0) {
                         Text(
-                            Format.count(a.sessions, "appareil connecté", "appareils connectés"),
+                            pluralStringResource(R.plurals.transfer_devices, a.sessions, a.sessions),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
@@ -387,7 +390,7 @@ private fun ActivePanel(a: TransferState.Active, remainingMs: Long, onNewCode: (
             Spacer(Modifier.height(20.dp))
             val frac by animateFloatAsState(remainingMs.toFloat() / a.idleTimeoutMs.coerceAtLeast(1), label = "idle")
             Text(
-                "Arrêt automatique dans ${Format.duration(remainingMs)} sans activité",
+                stringResource(R.string.transfer_auto_stop_in, Format.duration(remainingMs)),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -419,11 +422,11 @@ private fun NoticeCard(icon: ImageVector, title: String, message: String, contai
 @Composable
 private fun LogRow(e: TransferLogEntity, now: Long, modifier: Modifier = Modifier) {
     val (icon, label) = when (e.action) {
-        TransferActions.DOWNLOAD -> Icons.Rounded.CloudDownload to "Téléchargé"
-        TransferActions.UPLOAD -> Icons.Rounded.CloudUpload to "Reçu"
-        TransferActions.MKDIR -> Icons.Rounded.CreateNewFolder to "Dossier créé"
-        TransferActions.CONNECT -> Icons.Rounded.Devices to "Connexion"
-        else -> Icons.Rounded.Block to "Refusé"
+        TransferActions.DOWNLOAD -> Icons.Rounded.CloudDownload to stringResource(R.string.transfer_downloaded)
+        TransferActions.UPLOAD -> Icons.Rounded.CloudUpload to stringResource(R.string.transfer_received)
+        TransferActions.MKDIR -> Icons.Rounded.CreateNewFolder to stringResource(R.string.transfer_folder_created)
+        TransferActions.CONNECT -> Icons.Rounded.Devices to stringResource(R.string.transfer_connection)
+        else -> Icons.Rounded.Block to stringResource(R.string.transfer_refused)
     }
     val tone = if (e.action == TransferActions.DENIED) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer
     val onTone = if (e.action == TransferActions.DENIED) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer

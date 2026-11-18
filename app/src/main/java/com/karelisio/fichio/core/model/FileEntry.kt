@@ -1,5 +1,8 @@
 package com.karelisio.fichio.core.model
 
+import androidx.annotation.StringRes
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.compose.runtime.Immutable
 
 /**
@@ -43,14 +46,17 @@ enum class FileType {
 }
 
 /** Home screen categories (the gauge segments + category grid). */
-enum class FileCategory(val label: String) {
-    IMAGES("Images"),
-    VIDEOS("Vidéos"),
-    AUDIO("Audio"),
-    DOCUMENTS("Documents"),
-    APKS("APK"),
-    ARCHIVES("Archives"),
-    DOWNLOADS("Téléchargements"),
+enum class FileCategory(@StringRes val labelRes: Int) {
+    IMAGES(R.string.category_images),
+    VIDEOS(R.string.category_videos),
+    AUDIO(R.string.category_audio),
+    DOCUMENTS(R.string.category_documents),
+    APKS(R.string.category_apks),
+    ARCHIVES(R.string.category_archives),
+    DOWNLOADS(R.string.category_downloads);
+
+    /** Localised name (read at call time so that a language change is followed). */
+    val label: String get() = Strings.get(labelRes)
 }
 
 /** Sort options (per folder, persisted in Room). */

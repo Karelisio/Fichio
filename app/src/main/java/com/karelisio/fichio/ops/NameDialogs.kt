@@ -1,5 +1,7 @@
 package com.karelisio.fichio.ops
 
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -68,11 +70,11 @@ private fun initialValue(name: String, isDirectory: Boolean): TextFieldValue {
 fun RenameDialog(entry: FileEntry, onDismiss: () -> Unit, onRenamed: (String) -> Unit = {}) {
     val ops = rememberOperations()
     NameDialog(
-        title = "Renommer",
+        title = stringResource(R.string.common_rename),
         icon = Icons.Rounded.DriveFileRenameOutline,
         polygon = MaterialShapes.Cookie9Sided,
         initial = initialValue(entry.name, entry.isDirectory),
-        confirmLabel = "Renommer",
+        confirmLabel = stringResource(R.string.common_rename),
         unchanged = { it == entry.name },
         onDismiss = onDismiss,
         submit = { name -> ops.rename(entry.path, name) },
@@ -84,14 +86,14 @@ fun RenameDialog(entry: FileEntry, onDismiss: () -> Unit, onRenamed: (String) ->
 fun NewItemDialog(parent: String, folder: Boolean, onDismiss: () -> Unit, onCreated: (String) -> Unit = {}) {
     val ops = rememberOperations()
     var isFolder by remember { mutableStateOf(folder) }
-    val defaultName = if (isFolder) "Nouveau dossier" else "Nouveau fichier.txt"
+    val defaultName = if (isFolder) stringResource(R.string.browser_new_folder) else stringResource(R.string.ops_new_file_name)
     NameDialog(
-        title = if (isFolder) "Nouveau dossier" else "Nouveau fichier",
+        title = if (isFolder) stringResource(R.string.browser_new_folder) else stringResource(R.string.browser_new_file),
         icon = if (isFolder) Icons.Rounded.CreateNewFolder else Icons.Rounded.NoteAdd,
         polygon = if (isFolder) MaterialShapes.Clover4Leaf else MaterialShapes.Cookie6Sided,
         initial = initialValue(defaultName, isFolder),
         resetKey = isFolder,
-        confirmLabel = "Créer",
+        confirmLabel = stringResource(R.string.browser_create),
         unchanged = { false },
         onDismiss = onDismiss,
         submit = { name -> if (isFolder) ops.createFolder(parent, name) else ops.createFile(parent, name) },
@@ -102,12 +104,12 @@ fun NewItemDialog(parent: String, folder: Boolean, onDismiss: () -> Unit, onCrea
                     checked = isFolder,
                     onCheckedChange = { isFolder = true },
                     modifier = Modifier.weight(1f),
-                ) { Text("Dossier") }
+                ) { Text(stringResource(R.string.common_folder)) }
                 ToggleButton(
                     checked = !isFolder,
                     onCheckedChange = { isFolder = false },
                     modifier = Modifier.weight(1f),
-                ) { Text("Fichier") }
+                ) { Text(stringResource(R.string.common_file)) }
             }
             Spacer(Modifier.height(16.dp))
         },
@@ -174,7 +176,7 @@ private fun NameDialog(
                     onValueChange = { value = it; serverError = null },
                     singleLine = true,
                     isError = error != null,
-                    label = { Text("Nom") },
+                    label = { Text(stringResource(R.string.common_name)) },
                     supportingText = { Text(error ?: " ") },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { confirm() }),
@@ -193,7 +195,7 @@ private fun NameDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text("Annuler") }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.common_cancel)) }
         },
     )
 }

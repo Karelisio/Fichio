@@ -1,5 +1,7 @@
 package com.karelisio.fichio.apk
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.compose.runtime.Immutable
 import java.security.MessageDigest
 import java.util.Locale
@@ -21,17 +23,17 @@ data class SplitInfo(
 
     val displayName: String
         get() = when (kind) {
-            SplitKind.BASE -> "APK de base"
-            SplitKind.FEATURE -> "Module ${fileName.removeSuffix(".apk").removePrefix("split_")}"
-            SplitKind.ABI -> "Architecture ${SplitSelector.abiToAndroid(qualifier.orEmpty())}"
-            SplitKind.DENSITY -> "Densité ${qualifier.orEmpty()}"
-            SplitKind.LANGUAGE -> "Langue ${languageName(qualifier.orEmpty())}"
-            SplitKind.OTHER_CONFIG -> "Configuration ${qualifier.orEmpty()}"
+            SplitKind.BASE -> Strings.get(R.string.apk_split_base)
+            SplitKind.FEATURE -> Strings.get(R.string.apk_split_module, fileName.removeSuffix(".apk").removePrefix("split_"))
+            SplitKind.ABI -> Strings.get(R.string.apk_split_abi, SplitSelector.abiToAndroid(qualifier.orEmpty()))
+            SplitKind.DENSITY -> Strings.get(R.string.apk_split_density, qualifier.orEmpty())
+            SplitKind.LANGUAGE -> Strings.get(R.string.apk_split_language, languageName(qualifier.orEmpty()))
+            SplitKind.OTHER_CONFIG -> Strings.get(R.string.apk_split_config, qualifier.orEmpty())
         }
 
     private fun languageName(q: String): String {
         val lang = q.substringBefore('_')
-        val name = Locale.forLanguageTag(lang).getDisplayLanguage(Locale.FRENCH)
+        val name = Locale.forLanguageTag(lang).getDisplayLanguage(Strings.locale)
         return if (name.isNullOrBlank() || name == lang) q else "$name ($q)"
     }
 }
@@ -172,7 +174,7 @@ object ApkFormat {
 
     /** Android version name of an API level, e.g. 26 → "8.0". */
     fun androidVersion(api: Int): String = when (api) {
-        in 0..20 -> "4.4 ou antérieur"
+        in 0..20 -> Strings.get(R.string.apk_android_old)
         21 -> "5.0"; 22 -> "5.1"; 23 -> "6"; 24 -> "7.0"; 25 -> "7.1"; 26 -> "8.0"; 27 -> "8.1"
         28 -> "9"; 29 -> "10"; 30 -> "11"; 31 -> "12"; 32 -> "12L"; 33 -> "13"; 34 -> "14"; 35 -> "15"
         36 -> "16"; 37 -> "17"
@@ -184,23 +186,23 @@ object ApkFormat {
         val sys = systemMessage.orEmpty()
         return when {
             sys.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") || sys.contains("signatures do not match", true) ->
-                "La signature diffère de l'appli installée. Désinstallez-la d'abord."
-            sys.contains("INSTALL_FAILED_VERSION_DOWNGRADE") -> "Une version plus récente est déjà installée."
-            sys.contains("INSTALL_FAILED_OLDER_SDK") -> "Cette appli nécessite une version d'Android plus récente."
-            sys.contains("INSTALL_FAILED_NO_MATCHING_ABIS") -> "Architecture du processeur non prise en charge par cette appli."
-            sys.contains("INSTALL_FAILED_INSUFFICIENT_STORAGE") -> "Espace de stockage insuffisant."
-            sys.contains("INSTALL_FAILED_MISSING_SPLIT") -> "Il manque une partie (split) de l'appli dans ce paquet."
-            sys.contains("INSTALL_PARSE_FAILED_NO_CERTIFICATES") -> "APK non signé : installation impossible."
-            sys.contains("INSTALL_FAILED_DEPRECATED_SDK_VERSION") -> "Appli trop ancienne pour cette version d'Android."
+                Strings.get(R.string.apk_fail_signature)
+            sys.contains("INSTALL_FAILED_VERSION_DOWNGRADE") -> Strings.get(R.string.apk_fail_downgrade)
+            sys.contains("INSTALL_FAILED_OLDER_SDK") -> Strings.get(R.string.apk_fail_older_sdk)
+            sys.contains("INSTALL_FAILED_NO_MATCHING_ABIS") -> Strings.get(R.string.apk_fail_abi)
+            sys.contains("INSTALL_FAILED_INSUFFICIENT_STORAGE") -> Strings.get(R.string.apk_fail_storage)
+            sys.contains("INSTALL_FAILED_MISSING_SPLIT") -> Strings.get(R.string.apk_fail_missing_split)
+            sys.contains("INSTALL_PARSE_FAILED_NO_CERTIFICATES") -> Strings.get(R.string.apk_fail_no_cert)
+            sys.contains("INSTALL_FAILED_DEPRECATED_SDK_VERSION") -> Strings.get(R.string.apk_fail_deprecated_sdk)
             else -> when (status) {
-                STATUS_FAILURE_ABORTED -> "Installation annulée."
-                STATUS_FAILURE_BLOCKED -> "Installation bloquée par le système."
-                STATUS_FAILURE_CONFLICT -> "Conflit avec une appli déjà installée."
-                STATUS_FAILURE_INCOMPATIBLE -> "Appli incompatible avec cet appareil."
-                STATUS_FAILURE_INVALID -> "APK invalide ou endommagé."
-                STATUS_FAILURE_STORAGE -> "Espace de stockage insuffisant."
-                STATUS_FAILURE_TIMEOUT -> "Délai d'installation dépassé."
-                else -> "Échec de l'installation."
+                STATUS_FAILURE_ABORTED -> Strings.get(R.string.apk_install_cancelled)
+                STATUS_FAILURE_BLOCKED -> Strings.get(R.string.apk_fail_blocked)
+                STATUS_FAILURE_CONFLICT -> Strings.get(R.string.apk_fail_conflict)
+                STATUS_FAILURE_INCOMPATIBLE -> Strings.get(R.string.apk_fail_incompatible)
+                STATUS_FAILURE_INVALID -> Strings.get(R.string.apk_fail_invalid)
+                STATUS_FAILURE_STORAGE -> Strings.get(R.string.apk_fail_storage)
+                STATUS_FAILURE_TIMEOUT -> Strings.get(R.string.apk_fail_timeout)
+                else -> Strings.get(R.string.apk_fail_generic)
             }
         }
     }

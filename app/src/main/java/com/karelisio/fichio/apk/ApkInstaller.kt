@@ -1,5 +1,7 @@
 package com.karelisio.fichio.apk
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.Context
@@ -66,7 +68,7 @@ object ApkInstaller {
     fun install(context: Context, apkFile: File) {
         val app = context.applicationContext
         if (!canInstall(app)) {
-            _state.value = InstallState.Failure(null, "Autorisez Fichio à installer des applis, puis réessayez.")
+            _state.value = InstallState.Failure(null, Strings.get(R.string.apk_err_allow_install))
             openUnknownSourcesSettings(app)
             return
         }
@@ -102,7 +104,7 @@ object ApkInstaller {
         val sessionId = try {
             installer.createSession(params)
         } catch (e: Exception) {
-            fail(packageName, "Impossible de démarrer l'installation : ${e.message ?: e.javaClass.simpleName}")
+            fail(packageName, Strings.get(R.string.apk_err_start, e.message ?: e.javaClass.simpleName))
             throw e
         }
         val session = installer.openSession(sessionId)
@@ -146,8 +148,8 @@ object ApkInstaller {
             session.close()
         } catch (t: Throwable) {
             runCatching { session.abandon() }
-            if (t is CancellationException) _state.value = InstallState.Failure(packageName, "Installation annulée.")
-            else fail(packageName, "Échec de l'écriture : ${t.message ?: t.javaClass.simpleName}")
+            if (t is CancellationException) _state.value = InstallState.Failure(packageName, Strings.get(R.string.apk_install_cancelled))
+            else fail(packageName, Strings.get(R.string.apk_err_write, t.message ?: t.javaClass.simpleName))
             throw t
         }
     }
@@ -164,14 +166,14 @@ object ApkInstaller {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 val confirm = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_INTENT, Intent::class.java)
                 if (confirm == null) {
-                    fail(pkg, "Confirmation impossible : réessayez.")
+                    fail(pkg, Strings.get(R.string.apk_err_confirm_retry))
                     return
                 }
                 _state.value = InstallState.WaitingUser(pkg)
                 try {
                     context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 } catch (e: Exception) {
-                    fail(pkg, "Impossible d'afficher la confirmation d'installation.")
+                    fail(pkg, Strings.get(R.string.apk_err_confirm))
                 }
             }
             PackageInstaller.STATUS_SUCCESS -> _state.value = InstallState.Success(pkg)

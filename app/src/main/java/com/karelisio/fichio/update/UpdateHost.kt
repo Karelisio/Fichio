@@ -1,5 +1,9 @@
 package com.karelisio.fichio.update
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -117,10 +121,10 @@ private fun UpdateSheetContent(state: UpdateState) {
             }
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
-                Text("Nouvelle version", style = MaterialTheme.typography.labelLarge, color = cs.primary)
-                Text("Fichio ${update.version}", style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.update_new_version), style = MaterialTheme.typography.labelLarge, color = cs.primary)
+                Text(stringResource(R.string.settings_app_version, update.version), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
                 Text(
-                    "Installée : ${UpdateManager.currentVersion}" + if (update.apkSize > 0) " · ${Format.size(update.apkSize)}" else "",
+                    stringResource(R.string.update_installed, UpdateManager.currentVersion) + if (update.apkSize > 0) " · ${Format.size(update.apkSize)}" else "",
                     style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
                 )
             }
@@ -130,7 +134,7 @@ private fun UpdateSheetContent(state: UpdateState) {
         Surface(color = cs.surfaceContainerHigh, shape = MaterialTheme.shapes.large, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()).padding(16.dp)) {
                 if (update.changelog.isBlank()) {
-                    Text("Aucune note de version.", color = cs.onSurfaceVariant)
+                    Text(stringResource(R.string.update_no_notes), color = cs.onSurfaceVariant)
                 } else {
                     MarkdownText(update.changelog)
                 }
@@ -148,7 +152,7 @@ private fun UpdateSheetContent(state: UpdateState) {
                 UpdateState.Installing::class -> Row(verticalAlignment = Alignment.CenterVertically) {
                     LoadingIndicator(Modifier.size(48.dp))
                     Spacer(Modifier.width(12.dp))
-                    Text("Installation en cours…", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.update_installing), style = MaterialTheme.typography.titleMedium)
                 }
                 else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (state is UpdateState.Error) {
@@ -156,25 +160,25 @@ private fun UpdateSheetContent(state: UpdateState) {
                     }
                     Button(
                         onClick = { haptics.confirm(); UpdateManager.downloadAndInstall(context, update) },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                         shapes = ButtonDefaults.shapes(),
                     ) {
                         Icon(Icons.Rounded.SystemUpdate, null)
                         Spacer(Modifier.width(8.dp))
-                        Text(if (state is UpdateState.Error) "Réessayer" else "Mettre à jour")
+                        Text(if (state is UpdateState.Error) stringResource(R.string.common_retry) else stringResource(R.string.update_update))
                     }
                     if (!SelfInstaller.canInstall(context)) {
                         Text(
-                            "Fichio doit être autorisé à installer des applis : le réglage s'ouvrira.",
+                            stringResource(R.string.update_needs_install_permission),
                             style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
                         )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilledTonalButton(onClick = { haptics.click(); UpdateManager.dismiss() }, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes()) {
-                            Text("Plus tard")
+                            Text(stringResource(R.string.update_later))
                         }
                         OutlinedButton(onClick = { haptics.click(); UpdateManager.skip(context, update.version) }, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes()) {
-                            Text("Ignorer cette version")
+                            Text(stringResource(R.string.update_skip_version))
                         }
                     }
                 }
@@ -194,7 +198,7 @@ private fun DownloadProgress(state: UpdateState.Downloading?) {
             AnimatedCounter("${(state.fraction * 100).toInt()}", style = MaterialTheme.typography.displaySmall.copy(color = cs.primary))
             Text(" %", style = MaterialTheme.typography.titleLarge, color = cs.primary, modifier = Modifier.padding(bottom = 6.dp))
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = { UpdateManager.cancelDownload() }) { Text("Annuler") }
+            TextButton(onClick = { UpdateManager.cancelDownload() }) { Text(stringResource(R.string.common_cancel)) }
         }
         Spacer(Modifier.height(8.dp))
         LinearWavyProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth().height(14.dp))
@@ -202,7 +206,7 @@ private fun DownloadProgress(state: UpdateState.Downloading?) {
         Text(
             buildString {
                 append(Format.size(state.read))
-                if (state.total > 0) append(" sur ${Format.size(state.total)}")
+                if (state.total > 0) append(" ").append(stringResource(R.string.update_of_total, Format.size(state.total)))
                 if (state.bytesPerSecond > 0) append(" · ${Format.size(state.bytesPerSecond)}/s")
             },
             style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,

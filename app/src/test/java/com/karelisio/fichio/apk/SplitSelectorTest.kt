@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.karelisio.fichio.core.util.Strings
 
 class SplitSelectorTest {
     private val arm64Device = listOf("arm64-v8a", "armeabi-v7a", "armeabi")
@@ -79,8 +80,8 @@ class SplitSelectorTest {
     }
 
     @Test fun installFailureMessages() {
-        assertTrue(ApkFormat.installFailureMessage(ApkFormat.STATUS_FAILURE_CONFLICT, "INSTALL_FAILED_UPDATE_INCOMPATIBLE: x").contains("signature"))
-        assertEquals("Installation annulée.", ApkFormat.installFailureMessage(ApkFormat.STATUS_FAILURE_ABORTED, null))
-        assertEquals("Espace de stockage insuffisant.", ApkFormat.installFailureMessage(ApkFormat.STATUS_FAILURE_STORAGE, ""))
+        assertTrue(ApkFormat.installFailureMessage(ApkFormat.STATUS_FAILURE_CONFLICT, "INSTALL_FAILED_UPDATE_INCOMPATIBLE: x")== Strings.get(com.karelisio.fichio.R.string.apk_fail_signature))
+        assertEquals(Strings.get(com.karelisio.fichio.R.string.apk_install_cancelled), ApkFormat.installFailureMessage(ApkFormat.STATUS_FAILURE_ABORTED, null))
+        assertEquals(Strings.get(com.karelisio.fichio.R.string.apk_fail_storage), ApkFormat.installFailureMessage(ApkFormat.STATUS_FAILURE_STORAGE, ""))
     }
 }

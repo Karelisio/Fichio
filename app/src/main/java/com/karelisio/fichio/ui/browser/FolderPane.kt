@@ -1,5 +1,8 @@
 package com.karelisio.fichio.ui.browser
 
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.R
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
@@ -334,8 +337,8 @@ private fun FolderContent(
                     ShizukuStatusPanel(Modifier.padding(16.dp))
                 } else {
                     EmptyState(
-                        Icons.Rounded.ErrorOutline, "Impossible d'ouvrir ce dossier", message = listing.message,
-                        actionLabel = "Réessayer", onAction = { pane.load(path) },
+                        Icons.Rounded.ErrorOutline, stringResource(R.string.browser_open_folder_failed), message = listing.message,
+                        actionLabel = stringResource(R.string.common_retry), onAction = { pane.load(path) },
                     )
                 }
             }
@@ -351,7 +354,7 @@ private fun FolderContent(
                 if (entries.isEmpty()) {
                     Column(Modifier.fillMaxSize()) {
                         header(Modifier, true)
-                        EmptyState(Icons.Rounded.FolderOff, "Dossier vide", message = if (listing.hiddenCount > 0) "${listing.hiddenCount} élément(s) caché(s)" else null)
+                        EmptyState(Icons.Rounded.FolderOff, stringResource(R.string.browser_empty_folder), message = if (listing.hiddenCount > 0) pluralStringResource(R.plurals.browser_hidden_items, listing.hiddenCount, listing.hiddenCount) else null)
                     }
                 } else AnimatedContent(
                     targetState = view.mode,
@@ -479,7 +482,7 @@ private fun FolderHeader(path: String, listing: Listing.Loaded?, volumes: List<V
                         )
                         Text(
                             buildString {
-                                append(if (listing.folders + listing.files > 1) " éléments" else " élément")
+                                append(" ").append(pluralStringResource(R.plurals.category_items_noun, listing.folders + listing.files))
                                 if (listing.files > 0) append(" · ${Format.size(listing.totalFileSize)}")
                             },
                             style = MaterialTheme.typography.bodyMedium,

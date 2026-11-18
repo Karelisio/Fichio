@@ -1,5 +1,7 @@
 package com.karelisio.fichio.core.fs
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.content.Context
 import android.os.Environment
 import android.os.StatFs
@@ -89,9 +91,9 @@ class VolumeRepository(private val context: Context) {
             Volume(
                 path = dir.absolutePath,
                 label = when {
-                    v.isPrimary -> "Stockage interne"
-                    isUsb -> desc.ifEmpty { "Clé USB" }
-                    else -> desc.ifEmpty { "Carte SD" }
+                    v.isPrimary -> Strings.get(R.string.storage_internal)
+                    isUsb -> desc.ifEmpty { Strings.get(R.string.storage_usb) }
+                    else -> desc.ifEmpty { Strings.get(R.string.storage_sd) }
                 },
                 isPrimary = v.isPrimary,
                 isRemovable = v.isRemovable,
@@ -101,7 +103,7 @@ class VolumeRepository(private val context: Context) {
             )
         }.ifEmpty {
             val stat = runCatching { StatFs(StoragePaths.primary) }.getOrNull()
-            listOf(Volume(StoragePaths.primary, "Stockage interne", true, false, false, stat?.totalBytes ?: 0, stat?.availableBytes ?: 0))
+            listOf(Volume(StoragePaths.primary, Strings.get(R.string.storage_internal), true, false, false, stat?.totalBytes ?: 0, stat?.availableBytes ?: 0))
         }.sortedByDescending { it.isPrimary }
         _volumes.value = list
         return list

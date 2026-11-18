@@ -1,5 +1,7 @@
 package com.karelisio.fichio.core.fs
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import com.karelisio.fichio.core.model.FileEntry
 import java.io.IOException
 import java.io.InputStream
@@ -49,4 +51,4 @@ interface FileBackend {
 }
 
 /** Thrown when Android/data is requested but Shevery/Shizuku is not available. */
-class ShizukuUnavailableException(message: String = "Shevery n'est pas actif") : IOException(message)
+class ShizukuUnavailableException(message: String = Strings.get(R.string.shizuku_not_active)) : IOException(message)

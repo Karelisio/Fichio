@@ -1,5 +1,7 @@
 package com.karelisio.fichio.settings
 
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
@@ -59,7 +61,7 @@ import com.karelisio.fichio.ui.components.ListContentPadding
 import com.karelisio.fichio.ui.components.cascadeIn
 import com.karelisio.fichio.ui.components.rememberHaptics
 
-/** Every permission with an animated status pill and a "Corriger" action; re-checked on resume. */
+/** Every permission with an animated status pill and a stringResource(R.string.perm_fix) action; re-checked on resume. */
 @Composable
 internal fun PermissionsList(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -78,8 +80,8 @@ internal fun PermissionsList(onBack: () -> Unit) {
         modifier = Modifier.nestedScroll(scroll.nestedScrollConnection),
         topBar = {
             MediumFlexibleTopAppBar(
-                title = { Text("Autorisations") },
-                subtitle = { Text("$okCount sur ${specs.size} accordées") },
+                title = { Text(stringResource(R.string.perm_title)) },
+                subtitle = { Text(stringResource(R.string.perm_granted_count, okCount, specs.size)) },
                 navigationIcon = { BackButton(onBack) },
                 scrollBehavior = scroll,
             )
@@ -121,7 +123,7 @@ internal fun PermissionsList(onBack: () -> Unit) {
                                         PermissionsCatalog.setAutostartConfirmed(context, it)
                                         refresh++
                                     })
-                                    Text("C'est fait", style = MaterialTheme.typography.labelLarge)
+                                    Text(stringResource(R.string.perm_done), style = MaterialTheme.typography.labelLarge)
                                 }
                             }
                             AnimatedVisibility(!ok || spec.kind == PermissionKind.MANUAL, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
@@ -133,8 +135,8 @@ internal fun PermissionsList(onBack: () -> Unit) {
                                     Text(
                                         when (spec.kind) {
                                             PermissionKind.SHIZUKU -> PermissionsCatalog.shizukuActionText(shizuku)
-                                            PermissionKind.MANUAL -> "Ouvrir les réglages"
-                                            else -> "Corriger"
+                                            PermissionKind.MANUAL -> stringResource(R.string.perm_open_settings)
+                                            else -> stringResource(R.string.perm_fix)
                                         }
                                     )
                                 }
@@ -168,17 +170,17 @@ private fun SummaryCard(allGood: Boolean, missingRequired: Int) {
         Column {
             Text(
                 when {
-                    allGood -> "Tout est en ordre"
-                    missingRequired > 0 -> "Accès aux fichiers manquant"
-                    else -> "Quelques réglages facultatifs"
+                    allGood -> stringResource(R.string.perm_all_good)
+                    missingRequired > 0 -> stringResource(R.string.perm_files_missing)
+                    else -> stringResource(R.string.perm_some_optional)
                 },
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
                 when {
-                    allGood -> "Fichio dispose de tout ce dont il a besoin."
-                    missingRequired > 0 -> "Sans lui, Fichio ne peut pas parcourir vos fichiers."
-                    else -> "Fichio fonctionne ; ces options améliorent l'expérience."
+                    allGood -> stringResource(R.string.perm_all_good_body)
+                    missingRequired > 0 -> stringResource(R.string.perm_files_missing_body)
+                    else -> stringResource(R.string.perm_optional_body)
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )

@@ -1,5 +1,8 @@
 package com.karelisio.fichio.preview
 
+import com.karelisio.fichio.core.util.Strings
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.view.ViewGroup
@@ -102,7 +105,7 @@ internal fun VideoPlayerScreen(
             source = runCatching {
                 if (StoragePaths.isRestricted(entry.path)) Uri.fromFile(PreviewCache.localFile(context, entry.path))
                 else Uri.fromFile(File(entry.path))
-            }.getOrElse { error = "Lecture impossible : ${it.message}"; null }
+            }.getOrElse { error = Strings.get(R.string.video_read_failed, it.message); null }
         }
     }
 
@@ -131,7 +134,7 @@ internal fun VideoPlayerScreen(
             }
 
             override fun onPlayerError(e: PlaybackException) {
-                error = "Ce format vidéo n'est pas pris en charge (${e.errorCodeName})"
+                error = Strings.get(R.string.video_unsupported, e.errorCodeName)
             }
         }
         player.addListener(listener)
@@ -179,7 +182,7 @@ internal fun VideoPlayerScreen(
                     FilledTonalButton(onClick = { scope.launch { openWith(context, entry.path) } }) {
                         Icon(Icons.AutoMirrored.Rounded.OpenInNew, null)
                         Spacer(Modifier.size(8.dp))
-                        Text("Ouvrir avec…")
+                        Text(stringResource(R.string.browser_open_with))
                     }
                 }
             }
@@ -201,10 +204,10 @@ internal fun VideoPlayerScreen(
                     Text(entry.name, color = Color.White, style = MaterialTheme.typography.titleMedium, maxLines = 1,
                         overflow = TextOverflow.MiddleEllipsis, modifier = Modifier.weight(1f))
                     if (uri == null) {
-                        IconButton(onClick = { scope.launch { shareFile(context, entry.path) } }) { Icon(Icons.Rounded.Share, "Partager") }
-                        IconButton(onClick = { scope.launch { openWith(context, entry.path) } }) { Icon(Icons.AutoMirrored.Rounded.OpenInNew, "Ouvrir avec") }
+                        IconButton(onClick = { scope.launch { shareFile(context, entry.path) } }) { Icon(Icons.Rounded.Share, stringResource(R.string.common_share)) }
+                        IconButton(onClick = { scope.launch { openWith(context, entry.path) } }) { Icon(Icons.AutoMirrored.Rounded.OpenInNew, stringResource(R.string.open_with)) }
                     }
-                    IconButton(onClick = { info = true }) { Icon(Icons.Rounded.Info, "Infos") }
+                    IconButton(onClick = { info = true }) { Icon(Icons.Rounded.Info, stringResource(R.string.preview_info)) }
                     extraActions?.invoke()
                 }
             }

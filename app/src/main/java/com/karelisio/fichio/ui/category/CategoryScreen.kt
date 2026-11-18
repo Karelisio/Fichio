@@ -1,5 +1,10 @@
 package com.karelisio.fichio.ui.category
 
+import com.karelisio.fichio.ui.components.selectionSemantics
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -98,7 +103,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-private enum class CatSort(val label: String) { DATE("Récents"), NAME("Nom"), SIZE("Taille") }
+private enum class CatSort(@androidx.annotation.StringRes val label: Int) { DATE(R.string.home_recents), NAME(R.string.sort_name), SIZE(R.string.sort_size) }
 
 private fun IndexedFile.toEntry() = FileEntry(path, name, isDirectory, size, modified)
 
@@ -114,8 +119,11 @@ class CollectionLook(
     val sharedKey: String,
     /** Thumbnail grid instead of rows. */
     val visual: Boolean,
-    val emptyMessage: String = "L'index se met à jour en arrière-plan.",
+    val emptyMessage: String = Strings.get(R.string.category_index_updating),
 )
+
+/** What a collection lists, for its counters ("3 fichiers" / "3 éléments"). */
+enum class CollectionNoun { FILES, ITEMS }
 
 /** Extra selection action of a collection (e.g. remove a tag). */
 class CollectionAction(val icon: ImageVector, val label: String, val onClick: (List<String>) -> Unit)
@@ -149,7 +157,7 @@ fun SmartFolderScreen(nav: NavHostController, kind: SmartFolder) {
         title = kind.label, icon = kind.icon(), shape = kind.shape().toShape(),
         container = cs.secondaryContainer, content = cs.onSecondaryContainer, sharedKey = "smart-${kind.name}",
         visual = kind != SmartFolder.RECENT_DOWNLOADS,
-        emptyMessage = "Rien ici pour l'instant. ${kind.description}.",
+        emptyMessage = stringResource(R.string.category_empty_smart, kind.description),
     )
     CollectionScreen(nav, look, rows)
 }
@@ -167,14 +175,14 @@ fun TagScreen(nav: NavHostController, tagId: Long) {
     var renaming by remember { mutableStateOf(false) }
     val color = tagColor(tag?.slot ?: 0)
     val look = CollectionLook(
-        title = tag?.displayName ?: "Étiquette", icon = Icons.AutoMirrored.Rounded.Label, shape = CircleShape,
+        title = tag?.displayName ?: stringResource(R.string.tag_generic), icon = Icons.AutoMirrored.Rounded.Label, shape = CircleShape,
         container = color.copy(alpha = 0.22f), content = color, sharedKey = "tag-$tagId",
-        visual = false, emptyMessage = "Ajoutez cette étiquette depuis le menu de sélection du navigateur.",
+        visual = false, emptyMessage = stringResource(R.string.tag_empty_hint),
     )
     CollectionScreen(
-        nav, look, rows, itemNoun = "élément",
-        actions = listOf(CollectionAction(Icons.AutoMirrored.Rounded.LabelOff, "Retirer l'étiquette") { paths -> scope.launch { c.tags.unassign(tagId, paths) } }),
-        topAction = { IconButton(onClick = { renaming = true }, enabled = tag != null) { Icon(Icons.Rounded.Edit, "Renommer l'étiquette") } },
+        nav, look, rows, itemNoun = CollectionNoun.ITEMS,
+        actions = listOf(CollectionAction(Icons.AutoMirrored.Rounded.LabelOff, stringResource(R.string.tag_remove)) { paths -> scope.launch { c.tags.unassign(tagId, paths) } }),
+        topAction = { IconButton(onClick = { renaming = true }, enabled = tag != null) { Icon(Icons.Rounded.Edit, stringResource(R.string.tag_rename)) } },
     )
     if (renaming && tag != null) {
         RenameTagDialog(tag, onDismiss = { renaming = false }, onRename = { name -> scope.launch { c.tags.rename(tag.id, name) }; renaming = false })
@@ -203,7 +211,7 @@ fun CollectionScreen(
     nav: NavHostController,
     look: CollectionLook,
     rows: List<FileEntry>?,
-    itemNoun: String = "fichier",
+    itemNoun: CollectionNoun = CollectionNoun.FILES,
     actions: List<CollectionAction> = emptyList(),
     topAction: (@Composable () -> Unit)? = null,
     tagSlotOf: (FileEntry) -> Int? = { null },
@@ -229,11 +237,11 @@ fun CollectionScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    if (selection.isEmpty()) Text(look.title, maxLines = 1, overflow = TextOverflow.Ellipsis) else Text("${selection.size} sélectionné(s)")
+                    if (selection.isEmpty()) Text(look.title, maxLines = 1, overflow = TextOverflow.Ellipsis) else Text(pluralStringResource(R.plurals.common_selected_count, selection.size, selection.size))
                 },
                 navigationIcon = {
                     if (selection.isEmpty()) BackButton { nav.popBackStack() }
-                    else IconButton(onClick = { selection.clear() }) { Icon(Icons.Rounded.Close, "Annuler") }
+                    else IconButton(onClick = { selection.clear() }) { Icon(Icons.Rounded.Close, stringResource(R.string.common_cancel)) }
                 },
                 actions = {
                     if (selection.isNotEmpty()) {
@@ -241,11 +249,11 @@ fun CollectionScreen(
                             IconButton(onClick = { a.onClick(selection.toList()); selection.clear(); haptics.confirm() }) { Icon(a.icon, a.label) }
                         }
                         val files = selection.filter { p -> entries.firstOrNull { it.path == p }?.isDirectory != true }
-                        if (files.isNotEmpty()) IconButton(onClick = { Opener.share(context, files) }) { Icon(Icons.Rounded.Share, "Partager") }
+                        if (files.isNotEmpty()) IconButton(onClick = { Opener.share(context, files) }) { Icon(Icons.Rounded.Share, stringResource(R.string.common_share)) }
                         if (selection.size == 1) IconButton(onClick = {
                             nav.navigate(Route.Browser(selection.first().substringBeforeLast('/'))); selection.clear()
-                        }) { Icon(Icons.Rounded.FolderOpen, "Afficher dans le dossier") }
-                        IconButton(onClick = { c.operations.trash(selection.toList()); selection.clear(); haptics.confirm() }) { Icon(Icons.Rounded.Delete, "Supprimer") }
+                        }) { Icon(Icons.Rounded.FolderOpen, stringResource(R.string.common_show_in_folder)) }
+                        IconButton(onClick = { c.operations.trash(selection.toList()); selection.clear(); haptics.confirm() }) { Icon(Icons.Rounded.Delete, stringResource(R.string.common_delete)) }
                     } else {
                         topAction?.invoke()
                     }
@@ -276,19 +284,19 @@ fun CollectionScreen(
                         Column {
                             Row(verticalAlignment = Alignment.Bottom) {
                                 AnimatedCounter("${entries.size}", style = MaterialTheme.typography.headlineMedium)
-                                Text(if (entries.size > 1) " ${itemNoun}s" else " $itemNoun", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 3.dp))
+                                Text(" " + pluralStringResource(if (itemNoun == CollectionNoun.ITEMS) R.plurals.category_items_noun else R.plurals.category_files_noun, entries.size), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 3.dp))
                             }
                             Text(Format.size(entries.sumOf { it.size }), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CatSort.entries.forEach { s -> FilterChip(selected = sort == s, onClick = { sort = s }, label = { Text(s.label) }) }
+                        CatSort.entries.forEach { s -> FilterChip(selected = sort == s, onClick = { sort = s }, label = { Text(stringResource(s.label)) }) }
                     }
                 }
             }
             if (entries.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }, key = "#empty") {
-                    EmptyState(Icons.Rounded.SearchOff, "Aucun $itemNoun", message = look.emptyMessage)
+                    EmptyState(Icons.Rounded.SearchOff, stringResource(if (itemNoun == CollectionNoun.ITEMS) R.string.category_no_items else R.string.category_no_files), message = look.emptyMessage)
                 }
             }
             itemsIndexed(entries, key = { _, e -> e.path }) { i, e ->
@@ -296,7 +304,7 @@ fun CollectionScreen(
                 val click = Modifier.combinedClickable(
                     onClick = { if (selection.isNotEmpty()) { if (selected) selection.remove(e.path) else selection.add(e.path) } else nav.openEntry(context, e) },
                     onLongClick = { haptics.longPress(); if (!selected) selection.add(e.path) },
-                )
+                ).selectionSemantics(selected, onToggleSelection = { if (selected) selection.remove(e.path) else selection.add(e.path) })
                 if (visual) {
                     Box(Modifier.padding(3.dp).aspectRatio(1f).cascadeIn(i).clip(RoundedCornerShape(if (selected) 28.dp else 18.dp)).then(click)) {
                         FileThumbnail(e, fill = true, size = 48.dp, shape = RoundedCornerShape(0.dp), modifier = Modifier.sharedElementKey("thumb-${e.path}"))

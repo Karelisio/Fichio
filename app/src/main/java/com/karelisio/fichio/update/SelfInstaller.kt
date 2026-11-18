@@ -1,5 +1,7 @@
 package com.karelisio.fichio.update
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -46,7 +48,7 @@ object SelfInstaller {
         val sessionId = try {
             installer.createSession(params)
         } catch (e: Exception) {
-            onResult(e.message ?: "Session d'installation impossible"); return
+            onResult(e.message ?: Strings.get(R.string.update_err_session)); return
         }
 
         // Dynamic receiver for the session status; unregistered once a final status arrives.
@@ -59,7 +61,7 @@ object SelfInstaller {
                         if (confirm != null) {
                             confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             runCatching { ctx.startActivity(confirm) }
-                                .onFailure { onResult("Impossible d'afficher la confirmation d'installation") }
+                                .onFailure { onResult(Strings.get(R.string.update_err_confirm)) }
                         }
                     }
                     PackageInstaller.STATUS_SUCCESS -> {
@@ -71,8 +73,8 @@ object SelfInstaller {
                         runCatching { ctx.unregisterReceiver(this) }
                         val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
                         onResult(
-                            if (status == PackageInstaller.STATUS_FAILURE_ABORTED) "Installation annulée"
-                            else "Échec de l'installation" + (msg?.let { " : $it" } ?: "")
+                            if (status == PackageInstaller.STATUS_FAILURE_ABORTED) Strings.get(R.string.update_install_cancelled)
+                            else Strings.get(R.string.update_install_failed) + (msg?.let { " : $it" } ?: "")
                         )
                     }
                 }
@@ -98,7 +100,7 @@ object SelfInstaller {
         } catch (e: Exception) {
             runCatching { app.unregisterReceiver(receiver) }
             runCatching { installer.abandonSession(sessionId) }
-            onResult(e.message ?: "Installation impossible")
+            onResult(e.message ?: Strings.get(R.string.update_err_install))
         }
     }
 }

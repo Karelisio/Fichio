@@ -1,5 +1,7 @@
 package com.karelisio.fichio.archive
 
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -141,7 +143,7 @@ fun PasswordField(
                 AnimatedContent(visible, transitionSpec = { (scaleIn() + fadeIn()) togetherWith fadeOut() }, label = "eye") { v ->
                     Icon(
                         if (v) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                        contentDescription = if (v) "Masquer le mot de passe" else "Afficher le mot de passe",
+                        contentDescription = if (v) stringResource(R.string.archive_hide_password) else stringResource(R.string.archive_show_password),
                     )
                 }
             }
@@ -199,16 +201,16 @@ fun PasswordDialog(
                 Icon(Icons.Rounded.Lock, null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
             }
         },
-        title = { Text("Archive protégée") },
+        title = { Text(stringResource(R.string.archive_protected)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Saisissez le mot de passe de « $archiveName ».", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.archive_enter_password_of, archiveName), style = MaterialTheme.typography.bodyMedium)
                 PasswordField(
                     value = text,
                     onValueChange = { text = it },
-                    label = "Mot de passe",
+                    label = stringResource(R.string.archive_password),
                     isError = wrong,
-                    supportingText = if (wrong) "Mot de passe incorrect" else null,
+                    supportingText = if (wrong) stringResource(R.string.archive_err_wrong_password) else null,
                     onDone = { if (text.isNotEmpty() && !busy) onSubmit(text.toCharArray()) },
                 )
             }
@@ -216,10 +218,10 @@ fun PasswordDialog(
         confirmButton = {
             Button(onClick = { onSubmit(text.toCharArray()) }, enabled = text.isNotEmpty() && !busy) {
                 if (busy) LoadingIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
-                else Text("Déverrouiller")
+                else Text(stringResource(R.string.archive_unlock))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 
@@ -253,11 +255,11 @@ fun FolderPickerDialog(initial: String?, onPick: (String) -> Unit, onDismiss: ()
                         haptics.tick()
                         current = if (volumeRoot != null || volumes.any { it.path == current }) null
                         else File(current!!).parent
-                    }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Dossier parent") }
+                    }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.archive_parent_folder)) }
                     Spacer(Modifier.width(4.dp))
                 }
                 Text(
-                    current?.let { c -> volumes.firstOrNull { it.path == c }?.label ?: File(c).name } ?: "Choisir un dossier",
+                    current?.let { c -> volumes.firstOrNull { it.path == c }?.label ?: File(c).name } ?: stringResource(R.string.archive_choose_folder),
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -280,7 +282,7 @@ fun FolderPickerDialog(initial: String?, onPick: (String) -> Unit, onDismiss: ()
                 } else {
                     if (children.isEmpty()) item {
                         Text(
-                            "Aucun sous-dossier", style = MaterialTheme.typography.bodyMedium,
+                            stringResource(R.string.archive_no_subfolders), style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp),
                         )
                     }
@@ -295,9 +297,9 @@ fun FolderPickerDialog(initial: String?, onPick: (String) -> Unit, onDismiss: ()
             }
         },
         confirmButton = {
-            Button(onClick = { current?.let { haptics.confirm(); onPick(it) } }, enabled = current != null) { Text("Choisir ici") }
+            Button(onClick = { current?.let { haptics.confirm(); onPick(it) } }, enabled = current != null) { Text(stringResource(R.string.archive_choose_here)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 

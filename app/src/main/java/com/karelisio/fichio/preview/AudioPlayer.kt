@@ -2,6 +2,8 @@
 
 package com.karelisio.fichio.preview
 
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
@@ -199,15 +201,15 @@ internal fun AudioPlayerScreen(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
                 BackButton(onBack)
                 Text(
-                    if ((now?.count ?: 0) > 1) "Lecture · ${now!!.index + 1} / ${now!!.count}" else "Lecture",
+                    if ((now?.count ?: 0) > 1) stringResource(R.string.audio_playing_index, now!!.index + 1, now!!.count) else stringResource(R.string.audio_playing),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
                 if (currentEntry.path.startsWith("/") && cached == null) {
-                    IconButton(onClick = { scope.launch { shareFile(context, currentEntry.path) } }) { Icon(Icons.Rounded.Share, "Partager") }
-                    if (onShowInFolder != null) IconButton(onClick = { onShowInFolder(currentEntry.parentPath) }) { Icon(Icons.Rounded.FolderOpen, "Afficher dans le dossier") }
+                    IconButton(onClick = { scope.launch { shareFile(context, currentEntry.path) } }) { Icon(Icons.Rounded.Share, stringResource(R.string.common_share)) }
+                    if (onShowInFolder != null) IconButton(onClick = { onShowInFolder(currentEntry.parentPath) }) { Icon(Icons.Rounded.FolderOpen, stringResource(R.string.common_show_in_folder)) }
                 }
-                IconButton(onClick = { info = currentEntry }) { Icon(Icons.Rounded.Info, "Infos") }
+                IconButton(onClick = { info = currentEntry }) { Icon(Icons.Rounded.Info, stringResource(R.string.preview_info)) }
                 extraActions?.invoke()
             }
 
@@ -225,7 +227,7 @@ internal fun AudioPlayerScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                         Text(t, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                         Text(
-                            listOfNotNull(a, now?.album).joinToString(" · ").ifEmpty { "Artiste inconnu" },
+                            listOfNotNull(a, now?.album).joinToString(" · ").ifEmpty { stringResource(R.string.audio_unknown_artist) },
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Normal),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -238,10 +240,10 @@ internal fun AudioPlayerScreen(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     val shuffle = now?.shuffle == true
                     IconToggleButton(checked = shuffle, onCheckedChange = { haptics.tick(); PlayerHub.toggleShuffle() }) {
-                        Icon(Icons.Rounded.Shuffle, "Lecture aléatoire", tint = if (shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Rounded.Shuffle, stringResource(R.string.audio_shuffle), tint = if (shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     FilledTonalIconButton(onClick = { haptics.tick(); PlayerHub.previous() }, modifier = Modifier.size(60.dp)) {
-                        Icon(Icons.Rounded.SkipPrevious, "Précédent", Modifier.size(30.dp))
+                        Icon(Icons.Rounded.SkipPrevious, stringResource(R.string.audio_previous), Modifier.size(30.dp))
                     }
                     PlayPauseButton(playing = playing, buffering = now?.buffering == true) {
                         haptics.click()
@@ -257,12 +259,12 @@ internal fun AudioPlayerScreen(
                         onClick = { haptics.tick(); PlayerHub.next() },
                         enabled = now?.hasNext == true,
                         modifier = Modifier.size(60.dp),
-                    ) { Icon(Icons.Rounded.SkipNext, "Suivant", Modifier.size(30.dp)) }
+                    ) { Icon(Icons.Rounded.SkipNext, stringResource(R.string.audio_next), Modifier.size(30.dp)) }
                     val repeat = now?.repeat ?: Player.REPEAT_MODE_OFF
                     IconToggleButton(checked = repeat != Player.REPEAT_MODE_OFF, onCheckedChange = { haptics.tick(); PlayerHub.cycleRepeat() }) {
                         Icon(
                             if (repeat == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
-                            "Répéter",
+                            stringResource(R.string.audio_repeat),
                             tint = if (repeat != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -340,7 +342,7 @@ private fun PlayPauseButton(playing: Boolean, buffering: Boolean, onClick: () ->
                 transitionSpec = { (scaleIn(bouncy(), initialScale = 0.4f) + fadeIn()) togetherWith (scaleOut(targetScale = 0.4f) + fadeOut()) },
                 label = "pp",
             ) { p ->
-                Icon(if (p) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (p) "Pause" else "Lecture", Modifier.size(40.dp))
+                Icon(if (p) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (p) stringResource(R.string.ops_pause) else stringResource(R.string.audio_play), Modifier.size(40.dp))
             }
             if (buffering) androidx.compose.material3.LoadingIndicator(Modifier.size(84.dp), color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.4f))
         }
@@ -438,10 +440,10 @@ internal fun MiniPlayer(onOpen: (String) -> Unit, modifier: Modifier) {
                     }
                     IconButton(onClick = { haptics.tick(); PlayerHub.toggle() }) {
                         AnimatedContent(np.isPlaying, transitionSpec = { scaleIn(bouncy()) togetherWith scaleOut() }, label = "miniPP") { pl ->
-                            Icon(if (pl) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (pl) "Pause" else "Lecture")
+                            Icon(if (pl) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (pl) stringResource(R.string.ops_pause) else stringResource(R.string.audio_play))
                         }
                     }
-                    IconButton(onClick = { haptics.confirm(); PlayerHub.stop() }) { Icon(Icons.Rounded.Close, "Arrêter") }
+                    IconButton(onClick = { haptics.confirm(); PlayerHub.stop() }) { Icon(Icons.Rounded.Close, stringResource(R.string.audio_stop)) }
                 }
                 MiniProgress(np)
             }

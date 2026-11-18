@@ -2,6 +2,11 @@
 
 package com.karelisio.fichio.search
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.content.Context
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -166,16 +171,20 @@ data class SearchUiState(
     val snippets: Map<String, String> = emptyMap(),
 )
 
-enum class SizeFilter(val label: String, val min: Long?, val max: Long?) {
-    TINY("< 1 Mo", null, MB),
-    SMALL("1 – 10 Mo", MB, 10 * MB),
-    MEDIUM("10 – 100 Mo", 10 * MB, 100 * MB),
-    LARGE("100 Mo – 1 Go", 100 * MB, GB),
-    HUGE("> 1 Go", GB, null),
+enum class SizeFilter(@androidx.annotation.StringRes val labelRes: Int, val min: Long?, val max: Long?) {
+    TINY(R.string.search_size_tiny, null, MB),
+    SMALL(R.string.search_size_small, MB, 10 * MB),
+    MEDIUM(R.string.search_size_medium, 10 * MB, 100 * MB),
+    LARGE(R.string.search_size_large, 100 * MB, GB),
+    HUGE(R.string.search_size_huge, GB, null);
+
+    val label: String get() = Strings.get(labelRes)
 }
 
-enum class DateFilter(val label: String) {
-    TODAY("Aujourd'hui"), WEEK("7 derniers jours"), MONTH("30 derniers jours"), YEAR("Cette année"), OLDER("Plus d'un an");
+enum class DateFilter(@androidx.annotation.StringRes val labelRes: Int) {
+    TODAY(R.string.trash_today), WEEK(R.string.smart_recent_downloads_desc), MONTH(R.string.search_date_month), YEAR(R.string.search_date_year), OLDER(R.string.search_date_older);
+
+    val label: String get() = Strings.get(labelRes)
 
     /** (after, before) bounds in millis. */
     fun bounds(now: Long = System.currentTimeMillis()): Pair<Long?, Long?> {
@@ -198,21 +207,21 @@ private const val MB = 1024L * 1024
 private const val GB = 1024L * MB
 
 fun FileType.label(): String = when (this) {
-    FileType.FOLDER -> "Dossiers"
-    FileType.IMAGE -> "Images"
-    FileType.VIDEO -> "Vidéos"
-    FileType.AUDIO -> "Audio"
+    FileType.FOLDER -> Strings.get(R.string.search_type_folders)
+    FileType.IMAGE -> Strings.get(R.string.category_images)
+    FileType.VIDEO -> Strings.get(R.string.category_videos)
+    FileType.AUDIO -> Strings.get(R.string.category_audio)
     FileType.PDF -> "PDF"
-    FileType.DOCUMENT -> "Documents"
-    FileType.SPREADSHEET -> "Tableurs"
-    FileType.PRESENTATION -> "Présentations"
-    FileType.TEXT -> "Texte"
-    FileType.CODE -> "Code"
-    FileType.ARCHIVE -> "Archives"
+    FileType.DOCUMENT -> Strings.get(R.string.category_documents)
+    FileType.SPREADSHEET -> Strings.get(R.string.search_type_spreadsheets)
+    FileType.PRESENTATION -> Strings.get(R.string.search_type_presentations)
+    FileType.TEXT -> Strings.get(R.string.type_text)
+    FileType.CODE -> Strings.get(R.string.search_type_code)
+    FileType.ARCHIVE -> Strings.get(R.string.category_archives)
     FileType.APK -> "APK"
-    FileType.EBOOK -> "Livres"
-    FileType.FONT -> "Polices"
-    FileType.OTHER -> "Autres"
+    FileType.EBOOK -> Strings.get(R.string.search_type_ebooks)
+    FileType.FONT -> Strings.get(R.string.search_type_fonts)
+    FileType.OTHER -> Strings.get(R.string.analysis_others)
 }
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
@@ -373,7 +382,7 @@ fun SearchScreen(scopePath: String?, onOpen: (FileEntry) -> Unit, onBack: () -> 
                     item(key = "__footer") {
                         if (ui.items.size >= SearchSqlBuilder.LIMIT) {
                             Text(
-                                "Seuls les ${SearchSqlBuilder.LIMIT} premiers résultats sont affichés. Affinez la recherche.",
+                                stringResource(R.string.search_limit, SearchSqlBuilder.LIMIT),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.fillMaxWidth().padding(24.dp),
@@ -395,7 +404,7 @@ private fun SearchField(state: TextFieldState, scoped: Boolean, onBack: () -> Un
     Surface(
         color = cs.surfaceContainerHigh,
         shape = CircleShape,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp).height(60.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp).heightIn(min = 60.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
             BackButton(onBack)
@@ -412,7 +421,7 @@ private fun SearchField(state: TextFieldState, scoped: Boolean, onBack: () -> Un
                         Box(contentAlignment = Alignment.CenterStart) {
                             if (state.text.isEmpty()) {
                                 Text(
-                                    if (scoped) "Rechercher dans ce dossier" else "Rechercher des fichiers",
+                                    if (scoped) stringResource(R.string.search_hint_folder) else stringResource(R.string.search_hint_all),
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
                                     color = cs.onSurfaceVariant,
                                     maxLines = 1,
@@ -429,7 +438,7 @@ private fun SearchField(state: TextFieldState, scoped: Boolean, onBack: () -> Un
                 label = "clear",
             ) { has ->
                 if (has) {
-                    IconButton(onClick = { state.clearText() }) { Icon(Icons.Rounded.Close, "Effacer") }
+                    IconButton(onClick = { state.clearText() }) { Icon(Icons.Rounded.Close, stringResource(R.string.search_clear)) }
                 } else {
                     Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                         Icon(Icons.Rounded.Search, null, tint = cs.onSurfaceVariant)
@@ -461,7 +470,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
                 FilterChip(
                     selected = here,
                     onClick = { haptics.tick(); vm.setScope(if (here) null else initialScope) },
-                    label = { Text(if (here) "Ce dossier" else "Partout") },
+                    label = { Text(if (here) stringResource(R.string.search_this_folder) else stringResource(R.string.search_everywhere)) },
                     leadingIcon = {
                         AnimatedContent(here, label = "scopeIcon") { h ->
                             Icon(if (h) Icons.Rounded.FolderOpen else Icons.Rounded.Public, null, Modifier.size(18.dp))
@@ -478,7 +487,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
                 label = {
                     Text(
                         when (sel.size) {
-                            0 -> "Type"
+                            0 -> stringResource(R.string.sort_type)
                             1 -> sel.first().label()
                             else -> "${sel.first().label()} +${sel.size - 1}"
                         },
@@ -496,7 +505,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
                 FilterChip(
                     selected = vm.size != null,
                     onClick = { haptics.tick(); sizeMenu = true },
-                    label = { Text(vm.size?.label ?: "Taille") },
+                    label = { Text(vm.size?.label ?: stringResource(R.string.sort_size)) },
                     leadingIcon = { Icon(Icons.Rounded.Straighten, null, Modifier.size(18.dp)) },
                     trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, null, Modifier.size(18.dp)) },
                 )
@@ -510,7 +519,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
                     }
                     if (vm.size != null) {
                         HorizontalDivider()
-                        DropdownMenuItem(text = { Text("Toutes les tailles") }, onClick = { vm.selectSize(null); sizeMenu = false })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.search_all_sizes)) }, onClick = { vm.selectSize(null); sizeMenu = false })
                     }
                 }
             }
@@ -520,7 +529,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
                 FilterChip(
                     selected = vm.date != null,
                     onClick = { haptics.tick(); dateMenu = true },
-                    label = { Text(vm.date?.label ?: "Date") },
+                    label = { Text(vm.date?.label ?: stringResource(R.string.sort_date)) },
                     leadingIcon = { Icon(Icons.Rounded.CalendarMonth, null, Modifier.size(18.dp)) },
                     trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, null, Modifier.size(18.dp)) },
                 )
@@ -534,7 +543,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
                     }
                     if (vm.date != null) {
                         HorizontalDivider()
-                        DropdownMenuItem(text = { Text("Toutes les dates") }, onClick = { vm.selectDate(null); dateMenu = false })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.search_all_dates)) }, onClick = { vm.selectDate(null); dateMenu = false })
                     }
                 }
             }
@@ -544,7 +553,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
             FilterChip(
                 selected = ext.isNotEmpty(),
                 onClick = { haptics.tick(); extSheet = true },
-                label = { Text(if (ext.isEmpty()) "Extension" else ext.sorted().joinToString(", ") { ".$it" }, maxLines = 1) },
+                label = { Text(if (ext.isEmpty()) stringResource(R.string.search_extension) else ext.sorted().joinToString(", ") { ".$it" }, maxLines = 1) },
                 leadingIcon = { Icon(Icons.Rounded.Tag, null, Modifier.size(18.dp)) },
                 trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, null, Modifier.size(18.dp)) },
             )
@@ -553,7 +562,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
             FilterChip(
                 selected = query.inContent,
                 onClick = { haptics.tick(); vm.toggleContent() },
-                label = { Text("Dans le contenu") },
+                label = { Text(stringResource(R.string.search_in_content)) },
                 leadingIcon = {
                     AnimatedContent(query.inContent, label = "contentIcon") { on ->
                         Icon(if (on) Icons.Rounded.Check else Icons.AutoMirrored.Rounded.Article, null, Modifier.size(18.dp))
@@ -571,7 +580,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
                     label = {
                         Text(
                             when (sel.size) {
-                                0 -> "Étiquette"
+                                0 -> stringResource(R.string.tag_generic)
                                 1 -> sel.first().displayName
                                 else -> "${sel.first().displayName} +${sel.size - 1}"
                             },
@@ -594,7 +603,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
                     }
                     if (query.tagIds.isNotEmpty()) {
                         HorizontalDivider()
-                        DropdownMenuItem(text = { Text("Toutes les étiquettes") }, onClick = { vm.clearTags(); tagMenu = false })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.search_all_tags)) }, onClick = { vm.clearTags(); tagMenu = false })
                     }
                 }
             }
@@ -603,7 +612,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
             FilterChip(
                 selected = !query.includeFolders,
                 onClick = { haptics.tick(); vm.toggleFolders() },
-                label = { Text("Fichiers seulement") },
+                label = { Text(stringResource(R.string.search_files_only)) },
                 leadingIcon = {
                     if (!query.includeFolders) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp))
                     else Icon(Icons.Rounded.Folder, null, Modifier.size(18.dp))
@@ -615,7 +624,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
                 InputChip(
                     selected = false,
                     onClick = { haptics.confirm(); vm.clearFilters() },
-                    label = { Text("Réinitialiser") },
+                    label = { Text(stringResource(R.string.search_reset)) },
                     trailingIcon = { Icon(Icons.Rounded.Close, null, Modifier.size(18.dp)) },
                     modifier = Modifier.animateItem(),
                 )
@@ -628,8 +637,8 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
         ModalBottomSheet(onDismissRequest = { typeSheet = false }, sheetState = sheet) {
             Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Types de fichiers", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    if (query.types.isNotEmpty()) TextButton(onClick = vm::clearTypes) { Text("Tout effacer") }
+                    Text(stringResource(R.string.search_file_types), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    if (query.types.isNotEmpty()) TextButton(onClick = vm::clearTypes) { Text(stringResource(R.string.search_clear_all)) }
                 }
                 Spacer(Modifier.height(12.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -650,7 +659,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
                     }
                 }
                 Spacer(Modifier.height(20.dp))
-                Button(onClick = { typeSheet = false }, modifier = Modifier.fillMaxWidth()) { Text("Afficher les résultats") }
+                Button(onClick = { typeSheet = false }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.search_show_results)) }
             }
         }
     }
@@ -661,14 +670,14 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
         ModalBottomSheet(onDismissRequest = { extSheet = false }, sheetState = sheet) {
             Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp).imePadding()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Extensions", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    if (query.extensions.isNotEmpty()) TextButton(onClick = vm::clearExtensions) { Text("Tout effacer") }
+                    Text(stringResource(R.string.search_extensions), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    if (query.extensions.isNotEmpty()) TextButton(onClick = vm::clearExtensions) { Text(stringResource(R.string.search_clear_all)) }
                 }
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it.replace(" ", "") },
-                    label = { Text("Ajouter une extension (ex. : pdf)") },
+                    label = { Text(stringResource(R.string.search_add_extension)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = {
@@ -690,7 +699,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
                     }
                 }
                 Spacer(Modifier.height(20.dp))
-                Button(onClick = { extSheet = false }, modifier = Modifier.fillMaxWidth()) { Text("Afficher les résultats") }
+                Button(onClick = { extSheet = false }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.search_show_results)) }
             }
         }
     }
@@ -720,26 +729,26 @@ private fun StatusLine(ui: SearchUiState, query: SearchQuery, indexCount: Int, c
             )
             Spacer(Modifier.width(6.dp))
             Text(
-                if (n <= 1) "résultat" else "résultats",
+                pluralStringResource(R.plurals.search_results_suffix, n),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.weight(1f))
             AnimatedVisibility(ui.scanning, enter = scaleIn(bouncy()) + fadeIn(), exit = scaleOut() + fadeOut()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Recherche directe…", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.search_direct), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(6.dp))
                     LoadingIndicator(Modifier.size(28.dp))
                 }
             }
             if (!ui.scanning && !ui.fromIndex) {
-                Icon(Icons.Rounded.TravelExplore, "Recherche sans index", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                Icon(Icons.Rounded.TravelExplore, stringResource(R.string.search_no_index), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             } else if (!ui.scanning && indexCount == 0) {
-                Text("Indexation en cours…", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.home_indexing), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else if (!ui.scanning && query.inContent && contentCount == 0) {
-                Text("Lecture du contenu en cours…", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.search_reading_content), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else if (!ui.scanning && query.inContent && contentCount > 0) {
-                Text("+ contenu de ${Format.items(contentCount)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.search_plus_content, Format.items(contentCount)), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -814,8 +823,8 @@ private fun ResultRow(
 private fun displayParent(parent: String): String {
     val primary = runCatching { StoragePaths.primary }.getOrDefault("")
     return when {
-        primary.isNotEmpty() && parent == primary -> "Stockage interne"
-        primary.isNotEmpty() && parent.startsWith("$primary/") -> "Interne › " + parent.removePrefix("$primary/").replace("/", " › ")
+        primary.isNotEmpty() && parent == primary -> Strings.get(R.string.storage_internal)
+        primary.isNotEmpty() && parent.startsWith("$primary/") -> Strings.get(R.string.browser_tab_internal) + " › " + parent.removePrefix("$primary/").replace("/", " › ")
         else -> parent
     }
 }
@@ -874,15 +883,15 @@ private fun HistoryPane(recent: List<String>, onPick: (String) -> Unit, onForget
     if (recent.isEmpty()) {
         EmptyState(
             icon = Icons.Rounded.TravelExplore,
-            title = "Trouvez n'importe quel fichier",
-            message = "Tapez un nom, ou utilisez les filtres pour lister par type, taille ou date.",
+            title = stringResource(R.string.search_empty_title),
+            message = stringResource(R.string.search_empty_body),
             modifier = Modifier.padding(top = 48.dp),
         )
         return
     }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item(key = "__h") {
-            SectionHeader("Recherches récentes", trailing = { TextButton(onClick = onClear) { Text("Effacer") } })
+            SectionHeader(stringResource(R.string.search_recent), trailing = { TextButton(onClick = onClear) { Text(stringResource(R.string.search_clear)) } })
         }
         itemsIndexed(recent, key = { _, t -> t }) { i, term ->
             Row(
@@ -897,8 +906,8 @@ private fun HistoryPane(recent: List<String>, onPick: (String) -> Unit, onForget
                 Icon(Icons.Rounded.History, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.width(16.dp))
                 Text(term, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                IconButton(onClick = { onPick(term) }) { Icon(Icons.Rounded.NorthWest, "Utiliser", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-                IconButton(onClick = { onForget(term) }) { Icon(Icons.Rounded.Close, "Retirer", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                IconButton(onClick = { onPick(term) }) { Icon(Icons.Rounded.NorthWest, stringResource(R.string.search_use), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                IconButton(onClick = { onForget(term) }) { Icon(Icons.Rounded.Close, stringResource(R.string.common_remove), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }
     }
@@ -908,10 +917,10 @@ private fun HistoryPane(recent: List<String>, onPick: (String) -> Unit, onForget
 private fun NoResults(scoped: Boolean, onSearchEverywhere: () -> Unit) {
     EmptyState(
         icon = Icons.Rounded.SearchOff,
-        title = "Aucun résultat",
-        message = if (scoped) "Rien dans ce dossier. Essayez de chercher partout ou de retirer des filtres."
-        else "Vérifiez l'orthographe ou retirez des filtres.",
-        actionLabel = if (scoped) "Chercher partout" else null,
+        title = stringResource(R.string.search_no_results),
+        message = if (scoped) stringResource(R.string.search_no_results_folder)
+        else stringResource(R.string.search_no_results_body),
+        actionLabel = if (scoped) stringResource(R.string.search_search_everywhere) else null,
         onAction = if (scoped) onSearchEverywhere else null,
         modifier = Modifier.padding(top = 48.dp),
     )

@@ -1,5 +1,7 @@
 package com.karelisio.fichio.transfer
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Immutable
@@ -45,7 +47,7 @@ object TransferController {
         _state.value = TransferState.Starting
         runCatching {
             ContextCompat.startForegroundService(context, Intent(context, TransferService::class.java))
-        }.onFailure { _state.value = TransferState.Error(it.message ?: "Démarrage impossible") }
+        }.onFailure { _state.value = TransferState.Error(it.message ?: Strings.get(R.string.transfer_err_start)) }
     }
 
     fun stop(context: Context) {

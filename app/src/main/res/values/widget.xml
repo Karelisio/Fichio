@@ -5,7 +5,4 @@
     <color name="widget_primary">#3F5F90</color>
     <color name="widget_on_surface">#191C20</color>
     <color name="widget_on_surface_variant">#44474E</color>
-    <string name="widget_preview_free">42 Go</string>
-    <string name="widget_preview_total">libres sur 256 Go</string>
-    <string name="widget_preview_folder">Documents</string>
 </resources>

@@ -29,6 +29,8 @@ object TestEnv {
     fun grantPermissions() {
         shell("appops set $pkg MANAGE_EXTERNAL_STORAGE allow")
         shell("pm grant $pkg android.permission.POST_NOTIFICATIONS")
+        // The tests look for the French texts: force the per-app language (Android 13+), whatever the emulator's.
+        shell("cmd locale set-app-locales $pkg --locales fr")
     }
 
     /** Deterministic settings: no update check (network sheet), no stale crash report. */

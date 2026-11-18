@@ -2,6 +2,8 @@
 
 package com.karelisio.fichio.preview
 
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
@@ -170,7 +172,7 @@ internal fun PdfViewer(file: File, entry: FileEntry, modifier: Modifier = Modifi
             onFailure = {
                 Box(modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                     Text(
-                        if (it is SecurityException) "Ce PDF est protégé par un mot de passe." else "Impossible d'ouvrir « ${entry.name} ».",
+                        if (it is SecurityException) stringResource(R.string.pdf_protected) else stringResource(R.string.pdf_open_failed, entry.name),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
@@ -254,7 +256,7 @@ private fun PdfPages(doc: PdfDocument, modifier: Modifier) {
                 shadowElevation = 4.dp,
             ) {
                 Text(
-                    "Page $currentPage / ${doc.pageCount}",
+                    stringResource(R.string.pdf_page_of, currentPage, doc.pageCount),
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
                 )
@@ -267,7 +269,7 @@ private fun PdfPages(doc: PdfDocument, modifier: Modifier) {
         val target = text.toIntOrNull()?.takeIf { it in 1..doc.pageCount }
         AlertDialog(
             onDismissRequest = { jump = false },
-            title = { Text("Aller à la page") },
+            title = { Text(stringResource(R.string.pdf_go_to_page)) },
             text = {
                 OutlinedTextField(
                     value = text,
@@ -282,9 +284,9 @@ private fun PdfPages(doc: PdfDocument, modifier: Modifier) {
                 TextButton(enabled = target != null, onClick = {
                     jump = false
                     target?.let { scope.launch { list.animateScrollToItem(it - 1) } }
-                }) { Text("Aller") }
+                }) { Text(stringResource(R.string.pdf_go)) }
             },
-            dismissButton = { TextButton(onClick = { jump = false }) { Text("Annuler") } },
+            dismissButton = { TextButton(onClick = { jump = false }) { Text(stringResource(R.string.common_cancel)) } },
         )
     }
 }
@@ -307,7 +309,7 @@ private fun PdfPage(doc: PdfDocument, index: Int, renderWidth: Int, modifier: Mo
     ) {
         val b = bitmap
         if (b != null && !b.isRecycled) {
-            Image(b.asImageBitmap(), contentDescription = "Page ${index + 1}", contentScale = ContentScale.FillWidth, modifier = Modifier.fillMaxSize())
+            Image(b.asImageBitmap(), contentDescription = stringResource(R.string.pdf_page, index + 1), contentScale = ContentScale.FillWidth, modifier = Modifier.fillMaxSize())
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 LoadingIndicator(color = Color.Gray)

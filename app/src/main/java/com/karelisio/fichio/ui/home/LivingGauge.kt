@@ -1,5 +1,9 @@
 package com.karelisio.fichio.ui.home
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -121,7 +125,12 @@ fun LivingGauge(
     }
 
     val (num, unit) = Format.sizeParts(used)
-    Box(modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
+    // One spoken sentence instead of the split digits of the counter ("64 Go utilisés sur 128 Go").
+    val description = stringResource(R.string.home_gauge_description, Format.size(used), Format.size(total), Format.size((total - used).coerceAtLeast(0)))
+    Box(
+        modifier.aspectRatio(1f).semantics(mergeDescendants = true) { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
         Canvas(Modifier.fillMaxWidth().aspectRatio(1f)) {
             @Suppress("UNUSED_EXPRESSION") version
             val stroke = size.minDimension * 0.085f
@@ -161,12 +170,12 @@ fun LivingGauge(
                 Text(" $unit", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold), color = scheme.onSurface)
             }
             Text(
-                "utilisés sur ${Format.size(total)}",
+                stringResource(R.string.home_gauge_used_of, Format.size(total)),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                 color = scheme.onSurfaceVariant,
             )
             Text(
-                "${Format.size((total - used).coerceAtLeast(0))} libres",
+                stringResource(R.string.home_free, Format.size((total - used).coerceAtLeast(0))),
                 style = MaterialTheme.typography.labelLarge,
                 color = scheme.primary,
             )

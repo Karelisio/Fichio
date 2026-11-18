@@ -1,5 +1,10 @@
 package com.karelisio.fichio.onboarding
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -80,12 +85,12 @@ private sealed interface OnbPage {
     data object Ready : OnbPage
 }
 
-private data class IntroText(val title: String, val body: String)
+private data class IntroText(@androidx.annotation.StringRes val title: Int, @androidx.annotation.StringRes val body: Int)
 
 private val intros = listOf(
-    IntroText("Bienvenue dans Fichio", "Un gestionnaire de fichiers rapide, expressif et 100 % local. Sans compte, sans pub, sans pistage."),
-    IntroText("Tout à portée de main", "Copiez, déplacez, compressez et prévisualisez vos fichiers avec des onglets, un double volet et la corbeille."),
-    IntroText("Gardez l'espace sous contrôle", "Repérez les gros fichiers, les doublons et les dossiers oubliés en un coup d'œil."),
+    IntroText(R.string.onb_welcome_title, R.string.onb_welcome_body),
+    IntroText(R.string.onb_tools_title, R.string.onb_tools_body),
+    IntroText(R.string.onb_space_title, R.string.onb_space_body),
 )
 
 /** Animated intro + one page per permission. */
@@ -138,10 +143,10 @@ fun OnboardingScreen(onFinished: () -> Unit) {
     Box(Modifier.fillMaxSize().background(cs.surface).background(bg)) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             // Skip button (intro only)
-            Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.weight(1f))
                 AnimatedVisibility(currentPage is OnbPage.Intro, enter = fadeIn(), exit = fadeOut()) {
-                    TextButton(onClick = { scope.launch { pager.animateScrollToPage(intros.size) } }) { Text("Passer") }
+                    TextButton(onClick = { scope.launch { pager.animateScrollToPage(intros.size) } }) { Text(stringResource(R.string.onb_skip)) }
                 }
             }
             HorizontalPager(
@@ -214,9 +219,9 @@ private fun IntroPage(index: Int, offset: Float, active: Boolean) {
             else -> GaugeIllustration(active = active)
         }
     }) {
-        Text(t.title, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+        Text(stringResource(t.title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.height(12.dp))
-        Text(t.body, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(t.body), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -267,14 +272,14 @@ private fun PermissionPage(
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (spec.required) {
                 Surface(color = cs.errorContainer, shape = CircleShape) {
-                    Text("Obligatoire", Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium, color = cs.onErrorContainer)
+                    Text(stringResource(R.string.onb_required), Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelMedium, color = cs.onErrorContainer)
                 }
                 Spacer(Modifier.width(8.dp))
             }
             PermissionStatusPill(granted, optional = !spec.required)
         }
         Spacer(Modifier.height(12.dp))
-        Text(spec.title, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+        Text(spec.title, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.height(10.dp))
         Text(spec.description, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, color = cs.onSurfaceVariant)
 
@@ -310,7 +315,7 @@ private fun PermissionPage(
                 val interaction = remember { MutableInteractionSource() }
                 Button(
                     onClick = { haptics.click(); request(spec) },
-                    modifier = Modifier.height(56.dp).pressScale(interaction),
+                    modifier = Modifier.heightIn(min = 56.dp).pressScale(interaction),
                     interactionSource = interaction,
                     shapes = ButtonDefaults.shapes(),
                     enabled = spec.kind != PermissionKind.SHIZUKU || shizuku != ShizukuState.CONNECTING,
@@ -320,8 +325,8 @@ private fun PermissionPage(
                     Text(
                         when (spec.kind) {
                             PermissionKind.SHIZUKU -> PermissionsCatalog.shizukuActionText(shizuku)
-                            PermissionKind.MANUAL -> "Ouvrir les réglages"
-                            else -> "Autoriser"
+                            PermissionKind.MANUAL -> stringResource(R.string.perm_open_settings)
+                            else -> stringResource(R.string.common_allow)
                         }
                     )
                 }
@@ -336,7 +341,7 @@ private fun PermissionPage(
                             PermissionsCatalog.setAutostartConfirmed(context, it)
                             onChanged()
                         })
-                        Text("C'est fait", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.perm_done), style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
@@ -347,10 +352,10 @@ private fun PermissionPage(
 @Composable
 private fun ReadyPage(offset: Float, active: Boolean) {
     PageScaffold(offset, illustration = { ReadyIllustration(active = active) }) {
-        Text("Tout est prêt", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+        Text(stringResource(R.string.onb_ready_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.height(12.dp))
         Text(
-            "Fichio va indexer vos fichiers en arrière-plan pour une recherche instantanée. Vous pourrez revoir les autorisations dans les réglages.",
+            stringResource(R.string.onb_ready_body),
             style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -366,15 +371,15 @@ private fun BottomBar(pager: PagerState, count: Int, blocked: Boolean, isLast: B
         val interaction = remember { MutableInteractionSource() }
         AnimatedContent(isLast, label = "cta", transitionSpec = { (scaleIn(bouncy()) + fadeIn()) togetherWith (scaleOut() + fadeOut()) }) { last ->
             if (last) {
-                Button(onClick = onFinish, modifier = Modifier.height(56.dp).pressScale(interaction), interactionSource = interaction, shapes = ButtonDefaults.shapes()) {
-                    Icon(Icons.Rounded.Check, null); Spacer(Modifier.width(8.dp)); Text("Commencer")
+                Button(onClick = onFinish, modifier = Modifier.heightIn(min = 56.dp).pressScale(interaction), interactionSource = interaction, shapes = ButtonDefaults.shapes()) {
+                    Icon(Icons.Rounded.Check, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.onb_start))
                 }
             } else {
                 FilledTonalButton(
-                    onClick = onNext, enabled = !blocked, modifier = Modifier.height(56.dp).pressScale(interaction),
+                    onClick = onNext, enabled = !blocked, modifier = Modifier.heightIn(min = 56.dp).pressScale(interaction),
                     interactionSource = interaction, shapes = ButtonDefaults.shapes(),
                 ) {
-                    Text(if (blocked) "Autorisation requise" else "Suivant")
+                    Text(if (blocked) stringResource(R.string.onb_permission_required) else stringResource(R.string.onb_next))
                     if (!blocked) { Spacer(Modifier.width(8.dp)); Icon(Icons.AutoMirrored.Rounded.ArrowForward, null) }
                 }
             }

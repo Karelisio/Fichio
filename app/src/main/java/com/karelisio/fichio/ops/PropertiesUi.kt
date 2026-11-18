@@ -1,5 +1,9 @@
 package com.karelisio.fichio.ops
 
+import com.karelisio.fichio.core.util.Strings
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.R
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.animation.AnimatedContent
@@ -69,21 +73,21 @@ import java.nio.file.Paths
 import java.nio.file.attribute.BasicFileAttributes
 
 private fun FileType.label(): String = when (this) {
-    FileType.FOLDER -> "Dossier"
-    FileType.IMAGE -> "Image"
-    FileType.VIDEO -> "Vidéo"
-    FileType.AUDIO -> "Audio"
-    FileType.PDF -> "Document PDF"
-    FileType.DOCUMENT -> "Document"
-    FileType.SPREADSHEET -> "Feuille de calcul"
-    FileType.PRESENTATION -> "Présentation"
-    FileType.TEXT -> "Texte"
-    FileType.CODE -> "Code source"
-    FileType.ARCHIVE -> "Archive"
-    FileType.APK -> "Application Android"
-    FileType.EBOOK -> "Livre numérique"
-    FileType.FONT -> "Police"
-    FileType.OTHER -> "Fichier"
+    FileType.FOLDER -> Strings.get(R.string.type_folder)
+    FileType.IMAGE -> Strings.get(R.string.type_image)
+    FileType.VIDEO -> Strings.get(R.string.type_video)
+    FileType.AUDIO -> Strings.get(R.string.type_audio)
+    FileType.PDF -> Strings.get(R.string.type_pdf)
+    FileType.DOCUMENT -> Strings.get(R.string.type_document)
+    FileType.SPREADSHEET -> Strings.get(R.string.type_spreadsheet)
+    FileType.PRESENTATION -> Strings.get(R.string.type_presentation)
+    FileType.TEXT -> Strings.get(R.string.type_text)
+    FileType.CODE -> Strings.get(R.string.type_code)
+    FileType.ARCHIVE -> Strings.get(R.string.type_archive)
+    FileType.APK -> Strings.get(R.string.type_apk)
+    FileType.EBOOK -> Strings.get(R.string.type_ebook)
+    FileType.FONT -> Strings.get(R.string.type_font)
+    FileType.OTHER -> Strings.get(R.string.type_other)
 }
 
 /** Size, dates, path, item count; MD5 / SHA-256 on demand. */
@@ -130,8 +134,8 @@ fun PropertiesSheet(entries: List<FileEntry>, onDismiss: () -> Unit) {
                         style = MaterialTheme.typography.titleLarge, maxLines = 3, overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        single?.let { if (it.isDirectory) "Dossier" else "${it.type.label()} · ${it.mimeType}" }
-                            ?: "Sélection multiple",
+                        single?.let { if (it.isDirectory) stringResource(R.string.type_folder) else stringResource(R.string.props_type_mime, it.type.label(), it.mimeType) }
+                            ?: stringResource(R.string.props_multiple),
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -152,7 +156,7 @@ fun PropertiesSheet(entries: List<FileEntry>, onDismiss: () -> Unit) {
                             val files = stats.files
                             val folders = (stats.folders - entries.count { it.isDirectory }).coerceAtLeast(0)
                             AnimatedCounter(
-                                "${Format.count(files, "fichier")} · ${Format.count(folders, "dossier")}",
+                                pluralStringResource(R.plurals.common_files_count, files, files) + " · " + pluralStringResource(R.plurals.common_folders_count, folders, folders),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         }
@@ -164,12 +168,12 @@ fun PropertiesSheet(entries: List<FileEntry>, onDismiss: () -> Unit) {
             }
 
             val path = single?.path ?: entries.first().parentPath
-            InfoRow(if (single != null) "Emplacement" else "Dossier", path, onCopy = { copy("Chemin", path) })
+            InfoRow(if (single != null) Strings.get(R.string.props_location) else Strings.get(R.string.type_folder), path, onCopy = { copy(Strings.get(R.string.props_path), path) })
             single?.let { s ->
-                InfoRow("Modifié", Format.date(s.lastModified))
+                InfoRow(stringResource(R.string.props_modified), Format.date(s.lastModified))
                 extraDates?.let { (created, accessed) ->
-                    if (created > 0) InfoRow("Créé", Format.date(created))
-                    if (accessed > 0) InfoRow("Dernier accès", Format.date(accessed))
+                    if (created > 0) InfoRow(stringResource(R.string.props_created), Format.date(created))
+                    if (accessed > 0) InfoRow(stringResource(R.string.props_accessed), Format.date(accessed))
                 }
                 if (!s.isDirectory) HashSection(s, onCopy = { label, v -> copy(label, v) })
             }
@@ -185,7 +189,7 @@ private fun InfoRow(label: String, value: String, onCopy: (() -> Unit)? = null) 
             SelectionContainer { Text(value, style = MaterialTheme.typography.bodyLarge) }
         }
         if (onCopy != null) {
-            IconButton(onClick = onCopy, shapes = IconButtonDefaults.shapes()) { Icon(Icons.Rounded.ContentCopy, "Copier") }
+            IconButton(onClick = onCopy, shapes = IconButtonDefaults.shapes()) { Icon(Icons.Rounded.ContentCopy, stringResource(R.string.common_copy)) }
         }
     }
 }
@@ -202,7 +206,7 @@ private fun HashSection(entry: FileEntry, onCopy: (String, String) -> Unit) {
 
     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Empreintes", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.props_hashes), style = MaterialTheme.typography.titleSmall)
             when {
                 hashes != null -> hashes!!.forEach { (algo, value) ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -211,14 +215,14 @@ private fun HashSection(entry: FileEntry, onCopy: (String, String) -> Unit) {
                             SelectionContainer { Text(value, style = MonoStyle) }
                         }
                         IconButton(onClick = { onCopy(algo.label, value) }, shapes = IconButtonDefaults.shapes()) {
-                            Icon(Icons.Rounded.ContentCopy, "Copier ${algo.label}")
+                            Icon(Icons.Rounded.ContentCopy, stringResource(R.string.props_copy_hash, algo.label))
                         }
                     }
                 }
                 running != null -> {
                     val animated by animateFloatAsState(progress, label = "hash")
                     LinearWavyProgressIndicator(progress = { animated }, Modifier.fillMaxWidth(), amplitude = { if (reduce) 0f else 1f })
-                    Text("Calcul… ${(progress * 100).toInt()} %", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.props_computing, (progress * 100).toInt()), style = MaterialTheme.typography.labelMedium)
                 }
                 else -> {
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
@@ -237,7 +241,7 @@ private fun HashSection(entry: FileEntry, onCopy: (String, String) -> Unit) {
                     ) {
                         Icon(Icons.Rounded.Fingerprint, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Calculer MD5 et SHA-256")
+                        Text(stringResource(R.string.props_compute))
                     }
                 }
             }

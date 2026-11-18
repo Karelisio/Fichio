@@ -1,5 +1,7 @@
 package com.karelisio.fichio.onboarding
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.Manifest
 import android.content.ComponentName
 import android.content.Context
@@ -64,41 +66,41 @@ object PermissionsCatalog {
         get() = Build.MANUFACTURER.lowercase().let { it.contains("honor") || it.contains("huawei") } ||
             Build.BRAND.lowercase().let { it.contains("honor") || it.contains("huawei") }
 
-    val all: List<PermissionSpec> = listOf(
+    val all: List<PermissionSpec> get() = listOf(
         PermissionSpec(
-            PermissionId.ALL_FILES, "Accès à tous les fichiers",
-            "Indispensable pour parcourir, copier et organiser vos fichiers sur tout le stockage, les clés USB et cartes SD.",
+            PermissionId.ALL_FILES, Strings.get(R.string.perm_all_files),
+            Strings.get(R.string.perm_all_files_desc),
             Icons.Rounded.FolderSpecial, MaterialShapes.Cookie9Sided, PermissionKind.SETTINGS, required = true,
         ),
         PermissionSpec(
-            PermissionId.NOTIFICATIONS, "Notifications",
-            "Pour suivre la progression des copies, des archives et du transfert local, même quand Fichio est en arrière-plan.",
+            PermissionId.NOTIFICATIONS, Strings.get(R.string.perm_notifications),
+            Strings.get(R.string.perm_notifications_desc),
             Icons.Rounded.NotificationsActive, MaterialShapes.SoftBurst, PermissionKind.RUNTIME,
             runtimePermission = Manifest.permission.POST_NOTIFICATIONS,
         ),
         PermissionSpec(
-            PermissionId.SHIZUKU, "Shevery (facultatif)",
-            "Android protège les dossiers Android/data et Android/obb. Avec Shevery (Shizuku), Fichio peut y accéder pour gérer les données des applis.",
+            PermissionId.SHIZUKU, Strings.get(R.string.perm_shizuku),
+            Strings.get(R.string.perm_shizuku_desc),
             Icons.Rounded.Shield, MaterialShapes.Gem, PermissionKind.SHIZUKU,
         ),
         PermissionSpec(
-            PermissionId.INSTALL_APPS, "Installation d'applis",
-            "Pour installer les APK que vous ouvrez dans Fichio et appliquer les mises à jour de l'appli.",
+            PermissionId.INSTALL_APPS, Strings.get(R.string.perm_install),
+            Strings.get(R.string.perm_install_desc),
             Icons.Rounded.InstallMobile, MaterialShapes.Clover4Leaf, PermissionKind.SETTINGS,
         ),
         PermissionSpec(
-            PermissionId.BATTERY, "Optimisation de la batterie",
-            "Évite que le système interrompe les longues opérations (grosses copies, transfert, vidage de la corbeille).",
+            PermissionId.BATTERY, Strings.get(R.string.perm_battery),
+            Strings.get(R.string.perm_battery_desc),
             Icons.Rounded.BatteryChargingFull, MaterialShapes.Pill, PermissionKind.SETTINGS,
         ),
         PermissionSpec(
-            PermissionId.AUTOSTART, "Lancement d'applis",
-            "Sur MagicOS, le système bloque les tâches en arrière-plan des applis « gérées automatiquement ». À régler à la main.",
+            PermissionId.AUTOSTART, Strings.get(R.string.perm_autostart),
+            Strings.get(R.string.perm_autostart_desc),
             Icons.Rounded.RocketLaunch, MaterialShapes.Sunny, PermissionKind.MANUAL,
             steps = listOf(
-                "Trouvez Fichio dans la liste",
-                "Désactivez « Gérer automatiquement »",
-                "Activez Lancement automatique, Lancement secondaire et Exécution en arrière-plan",
+                Strings.get(R.string.perm_autostart_step1),
+                Strings.get(R.string.perm_autostart_step2),
+                Strings.get(R.string.perm_autostart_step3),
             ),
         ),
     )
@@ -196,17 +198,17 @@ object PermissionsCatalog {
     }
 
     fun shizukuStatusText(state: ShizukuState): String = when (state) {
-        ShizukuState.NOT_INSTALLED -> "Shevery n'est pas installé"
-        ShizukuState.NOT_RUNNING -> "Shevery est installé mais pas démarré"
-        ShizukuState.NO_PERMISSION -> "Shevery attend votre autorisation"
-        ShizukuState.CONNECTING -> "Connexion à Shevery…"
-        ShizukuState.READY -> "Connecté à Shevery"
+        ShizukuState.NOT_INSTALLED -> Strings.get(R.string.shizuku_not_installed)
+        ShizukuState.NOT_RUNNING -> Strings.get(R.string.shizuku_not_running)
+        ShizukuState.NO_PERMISSION -> Strings.get(R.string.shizuku_no_permission)
+        ShizukuState.CONNECTING -> Strings.get(R.string.shizuku_connecting)
+        ShizukuState.READY -> Strings.get(R.string.shizuku_ready)
     }
 
     fun shizukuActionText(state: ShizukuState): String = when (state) {
-        ShizukuState.NOT_INSTALLED -> "En savoir plus"
-        ShizukuState.NO_PERMISSION -> "Autoriser"
-        else -> "Réessayer"
+        ShizukuState.NOT_INSTALLED -> Strings.get(R.string.common_learn_more)
+        ShizukuState.NO_PERMISSION -> Strings.get(R.string.common_allow)
+        else -> Strings.get(R.string.common_retry)
     }
 
     private fun component(pkg: String, cls: String) =

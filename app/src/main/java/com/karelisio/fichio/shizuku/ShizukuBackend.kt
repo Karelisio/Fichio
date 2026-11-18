@@ -1,5 +1,7 @@
 package com.karelisio.fichio.shizuku
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.os.DeadObjectException
 import android.os.ParcelFileDescriptor
 import com.karelisio.fichio.core.fs.FileBackend
@@ -40,12 +42,12 @@ class ShizukuBackend(
     }.onFailure(::checkDead).getOrNull()
 
     override fun openInput(path: String): InputStream = call {
-        val pfd = service.openRead(path) ?: throw IOException("Impossible d'ouvrir $path")
+        val pfd = service.openRead(path) ?: throw IOException(Strings.get(R.string.fs_err_open, path))
         ParcelFileDescriptor.AutoCloseInputStream(pfd)
     }
 
     override fun openOutput(path: String, append: Boolean): OutputStream = call {
-        val pfd = service.openWrite(path, append) ?: throw IOException("Impossible d'écrire $path")
+        val pfd = service.openWrite(path, append) ?: throw IOException(Strings.get(R.string.fs_err_write, path))
         ParcelFileDescriptor.AutoCloseOutputStream(pfd)
     }
 
@@ -70,8 +72,8 @@ class ShizukuBackend(
         throw e
     } catch (e: Exception) {
         checkDead(e)
-        if (e is DeadObjectException) throw ShizukuUnavailableException("Shevery s'est arrêté")
-        throw IOException(e.message ?: "Erreur Shevery", e)
+        if (e is DeadObjectException) throw ShizukuUnavailableException(Strings.get(R.string.shizuku_stopped))
+        throw IOException(e.message ?: Strings.get(R.string.shizuku_error), e)
     }
 
     private fun checkDead(e: Throwable) {

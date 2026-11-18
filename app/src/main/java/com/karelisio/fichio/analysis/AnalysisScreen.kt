@@ -1,5 +1,10 @@
 package com.karelisio.fichio.analysis
 
+import com.karelisio.fichio.ui.components.selectionSemantics
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -117,16 +122,18 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.math.sqrt
 
-private enum class AnalysisTab(val label: String, val icon: ImageVector) {
-    MAP("Carte", Icons.Rounded.DataUsage),
-    LARGE("Gros fichiers", Icons.Rounded.SdStorage),
-    DUPLICATES("Doublons", Icons.Rounded.ContentCopy),
-    OLD("Anciens", Icons.Rounded.History),
-    EMPTY("Vides", Icons.Rounded.FolderOff),
+private enum class AnalysisTab(@androidx.annotation.StringRes val labelRes: Int, val icon: ImageVector) {
+    MAP(R.string.analysis_tab_map, Icons.Rounded.DataUsage),
+    LARGE(R.string.analysis_tab_large, Icons.Rounded.SdStorage),
+    DUPLICATES(R.string.analysis_tab_duplicates, Icons.Rounded.ContentCopy),
+    OLD(R.string.analysis_tab_old, Icons.Rounded.History),
+    EMPTY(R.string.analysis_tab_empty, Icons.Rounded.FolderOff);
+
+    val label: String get() = Strings.get(labelRes)
 }
 
 private val LARGE_STEPS = listOf(1, 5, 10, 25, 50, 100, 250, 500, 1000, 2000)
-private val OLD_STEPS = listOf(7 to "1 semaine", 30 to "1 mois", 90 to "3 mois", 180 to "6 mois", 365 to "1 an", 730 to "2 ans")
+private val OLD_STEPS = listOf(7 to R.string.analysis_old_1w, 30 to R.string.analysis_old_1m, 90 to R.string.analysis_old_3m, 180 to R.string.analysis_old_6m, 365 to R.string.analysis_old_1y, 730 to R.string.analysis_old_2y)
 /** Minimum sizes (KiB) of the old-files and duplicates tabs; all at or above the pool floor (64 Ko). */
 private val OLD_SIZE_STEPS = listOf(64, 512, 1024, 10 * 1024, 100 * 1024)
 private val DUP_STEPS = listOf(64, 100, 256, 512, 1024, 10 * 1024, 100 * 1024)
@@ -135,9 +142,9 @@ private const val MB = 1024L * 1024
 
 /** "64 Ko", "1 Mo", "100 Mo", "2 Go" for a threshold in KiB. */
 private fun kbLabel(kb: Int): String = when {
-    kb >= 1024 * 1024 && kb % (1024 * 1024) == 0 -> "${kb / (1024 * 1024)} Go"
-    kb >= 1024 && kb % 1024 == 0 -> "${kb / 1024} Mo"
-    else -> "$kb Ko"
+    kb >= 1024 * 1024 && kb % (1024 * 1024) == 0 -> Strings.get(R.string.settings_gb_value, kb / (1024 * 1024))
+    kb >= 1024 && kb % 1024 == 0 -> Strings.get(R.string.settings_mb_value, kb / 1024)
+    else -> Strings.get(R.string.analysis_kb_value, kb)
 }
 
 /** Sunburst map + large files, duplicates, old files, empty folders. */
@@ -169,13 +176,13 @@ fun AnalysisScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Analyse du stockage") },
+                title = { Text(stringResource(R.string.analysis_title)) },
                 navigationIcon = { BackButton(onBack) },
                 actions = {
                     IconButton(
                         onClick = { haptics.click(); AnalysisController.start(container, force = true) },
                         enabled = status !is ScanStatus.Running,
-                    ) { Icon(Icons.Rounded.Refresh, "Réanalyser") }
+                    ) { Icon(Icons.Rounded.Refresh, stringResource(R.string.analysis_rescan)) }
                 },
             )
         },
@@ -186,9 +193,9 @@ fun AnalysisScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
             when {
                 r == null && status is ScanStatus.Failed -> EmptyState(
                     icon = Icons.Rounded.CleaningServices,
-                    title = "Analyse impossible",
+                    title = stringResource(R.string.analysis_err_failed),
                     message = (status as ScanStatus.Failed).message,
-                    actionLabel = "Réessayer",
+                    actionLabel = stringResource(R.string.common_retry),
                     onAction = { AnalysisController.start(container, force = true) },
                     modifier = Modifier.align(Alignment.Center),
                 )
@@ -274,8 +281,8 @@ fun AnalysisScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
                                 onSelectAll = { selections[t] = large.mapTo(HashSet()) { it.path } },
                                 onClear = { selections[t] = emptySet() },
                                 onTrash = askTrash { large.map { it.path } }, onOpenFolder = onOpenFolder,
-                                emptyTitle = "Aucun gros fichier",
-                                emptyMessage = "Rien ne dépasse ${Format.size(largeMin)}.",
+                                emptyTitle = stringResource(R.string.analysis_no_large),
+                                emptyMessage = stringResource(R.string.analysis_no_large_body, Format.size(largeMin)),
                                 emptyIcon = Icons.Rounded.SdStorage,
                             ) {
                                 LargeThresholdControl(
@@ -289,8 +296,8 @@ fun AnalysisScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
                                 onSelectAll = { selections[t] = old.mapTo(HashSet()) { it.path } },
                                 onClear = { selections[t] = emptySet() },
                                 onTrash = askTrash { old.map { it.path } }, onOpenFolder = onOpenFolder,
-                                emptyTitle = "Aucun fichier oublié",
-                                emptyMessage = "Tous vos fichiers volumineux ont été ouverts ou modifiés récemment.",
+                                emptyTitle = stringResource(R.string.analysis_no_old),
+                                emptyMessage = stringResource(R.string.analysis_no_old_body),
                                 emptyIcon = Icons.Rounded.History,
                                 showDate = true,
                             ) {
@@ -332,8 +339,8 @@ fun AnalysisScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
         AlertDialog(
             onDismissRequest = { pendingTrash = null },
             icon = { Icon(Icons.Rounded.Delete, null) },
-            title = { Text("Mettre ${Format.items(paths.size)} à la corbeille ?") },
-            text = { Text("Vous pourrez les restaurer depuis la corbeille de Fichio.") },
+            title = { Text(stringResource(R.string.analysis_trash_confirm, Format.items(paths.size))) },
+            text = { Text(stringResource(R.string.analysis_trash_confirm_body)) },
             confirmButton = {
                 Button(onClick = {
                     pendingTrash = null
@@ -346,11 +353,11 @@ fun AnalysisScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
                         selections.keys.toList().forEach { k -> selections[k] = selections[k].orEmpty() - paths.toSet() }
                     } else {
                         haptics.reject()
-                        scope.launch { snackbar.showSnackbar("Impossible de mettre ces éléments à la corbeille") }
+                        scope.launch { snackbar.showSnackbar(Strings.get(R.string.analysis_trash_failed)) }
                     }
-                }, shapes = ButtonDefaults.shapes()) { Text("Corbeille") }
+                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.shortcut_trash)) }
             },
-            dismissButton = { TextButton(onClick = { pendingTrash = null }) { Text("Annuler") } },
+            dismissButton = { TextButton(onClick = { pendingTrash = null }) { Text(stringResource(R.string.common_cancel)) } },
         )
     }
 }
@@ -358,7 +365,7 @@ fun AnalysisScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
 private fun keepNewestSelection(groups: List<DuplicateGroup>): Set<String> =
     groups.flatMapTo(HashSet()) { g -> val keep = g.newest; g.files.filter { it !== keep }.map { it.path } }
 
-private fun formatCount(n: Int): String = String.format(Locale.FRANCE, "%,d", n)
+private fun formatCount(n: Int): String = String.format(Strings.locale, "%,d", n)
 
 @Composable
 private fun ScanningPane(s: ScanStatus.Running, modifier: Modifier = Modifier) {
@@ -366,19 +373,19 @@ private fun ScanningPane(s: ScanStatus.Running, modifier: Modifier = Modifier) {
         ContainedLoadingIndicator(Modifier.size(112.dp))
         Spacer(Modifier.height(28.dp))
         AnimatedCounter(formatCount(s.files), style = GaugeNumberStyle.copy(color = MaterialTheme.colorScheme.onSurface))
-        Text("fichiers analysés", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(pluralStringResource(R.plurals.analysis_files_scanned_suffix, s.files), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(6.dp))
         Text(Format.size(s.bytes), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
         AnimatedVisibility(s.phase == StorageAnalyzer.Phase.DUPLICATES) {
             Column(Modifier.padding(top = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Recherche des doublons… ${s.hashed} / ${s.hashTotal}", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.analysis_finding_duplicates, s.hashed, s.hashTotal), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.height(10.dp))
                 val frac by animateFloatAsState(if (s.hashTotal > 0) s.hashed.toFloat() / s.hashTotal else 0f, label = "hash")
                 LinearWavyProgressIndicator(progress = { frac }, modifier = Modifier.width(220.dp))
             }
         }
         Spacer(Modifier.height(28.dp))
-        OutlinedButton(onClick = { AnalysisController.cancel() }, shapes = ButtonDefaults.shapes()) { Text("Annuler") }
+        OutlinedButton(onClick = { AnalysisController.cancel() }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.common_cancel)) }
     }
 }
 
@@ -388,12 +395,12 @@ private fun RescanBanner(s: ScanStatus.Running) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (s.phase == StorageAnalyzer.Phase.DUPLICATES) "Doublons… ${s.hashed} / ${s.hashTotal}"
-                    else "Nouvelle analyse… ${formatCount(s.files)} fichiers",
+                    if (s.phase == StorageAnalyzer.Phase.DUPLICATES) stringResource(R.string.analysis_duplicates_progress, s.hashed, s.hashTotal)
+                    else stringResource(R.string.analysis_new_scan, formatCount(s.files)),
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = { AnalysisController.cancel() }) { Text("Annuler") }
+                TextButton(onClick = { AnalysisController.cancel() }) { Text(stringResource(R.string.common_cancel)) }
             }
             LinearWavyProgressIndicator(Modifier.fillMaxWidth())
         }
@@ -420,7 +427,7 @@ private fun MapTab(
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         item(key = "summary") {
             Text(
-                "${Format.size(result.totalBytes)} dans ${Format.count(result.totalFiles, "fichier")} · analysé ${Format.relative(result.scannedAt)}",
+                stringResource(R.string.analysis_summary, Format.size(result.totalBytes), pluralStringResource(R.plurals.common_files_count, result.totalFiles, result.totalFiles), Format.relative(result.scannedAt)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
@@ -452,7 +459,7 @@ private fun MapTab(
                 ) {
                     Icon(Icons.Rounded.FolderOpen, null, Modifier.size(ButtonDefaults.IconSize))
                     Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                    Text("Ouvrir")
+                    Text(stringResource(R.string.common_open))
                 }
             }
         }
@@ -507,9 +514,9 @@ private fun LegendRow(
             Spacer(Modifier.height(4.dp))
             Text(
                 when (child.kind) {
-                    NodeKind.FILES -> "${Format.count(child.fileCount, "fichier")} dans ce dossier"
-                    NodeKind.OTHERS -> "${child.children.size} petits éléments · ${Format.count(child.fileCount, "fichier")}"
-                    NodeKind.DIR -> "${String.format(Locale.FRANCE, "%.1f", fraction * 100)} % · ${Format.count(child.fileCount, "fichier")}"
+                    NodeKind.FILES -> stringResource(R.string.analysis_files_here, pluralStringResource(R.plurals.common_files_count, child.fileCount, child.fileCount))
+                    NodeKind.OTHERS -> pluralStringResource(R.plurals.analysis_small_items, child.children.size, child.children.size) + " · " + pluralStringResource(R.plurals.common_files_count, child.fileCount, child.fileCount)
+                    NodeKind.DIR -> stringResource(R.string.analysis_percent, Format.decimal(fraction * 100.0)) + " · " + pluralStringResource(R.plurals.common_files_count, child.fileCount, child.fileCount)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -561,7 +568,7 @@ private fun CleanupScaffold(
                     Button(onClick = onTrash, shapes = ButtonDefaults.shapes()) {
                         Icon(Icons.Rounded.AutoDelete, null, Modifier.size(ButtonDefaults.IconSize))
                         Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                        Text("Corbeille")
+                        Text(stringResource(R.string.shortcut_trash))
                     }
                 }
             }
@@ -585,7 +592,7 @@ private fun RecoverCard(totalBytes: Long, totalCount: Int, selectedBytes: Long, 
         Column(Modifier.padding(24.dp)) {
             AnimatedContent(showSel, label = "recoverTitle") { sel ->
                 Text(
-                    if (sel) "Sélection à libérer" else "Espace récupérable",
+                    if (sel) stringResource(R.string.analysis_selection_to_free) else stringResource(R.string.analysis_reclaimable),
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
@@ -594,7 +601,7 @@ private fun RecoverCard(totalBytes: Long, totalCount: Int, selectedBytes: Long, 
                 Text(" $unit", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 8.dp))
             }
             Text(
-                if (showSel) "${Format.items(selectedCount)} sur $totalCount" else Format.items(totalCount),
+                if (showSel) stringResource(R.string.analysis_selected_of, Format.items(selectedCount), totalCount) else Format.items(totalCount),
                 style = MaterialTheme.typography.bodyMedium,
             )
             if (totalCount > 0) {
@@ -608,8 +615,8 @@ private fun RecoverCard(totalBytes: Long, totalCount: Int, selectedBytes: Long, 
 @Composable
 private fun SelectAllActions(allSelected: Boolean, onSelectAll: () -> Unit, onClear: () -> Unit) {
     AnimatedContent(allSelected, label = "selAll") { all ->
-        if (all) TextButton(onClick = onClear) { Text("Tout désélectionner") }
-        else TextButton(onClick = onSelectAll) { Text("Tout sélectionner") }
+        if (all) TextButton(onClick = onClear) { Text(stringResource(R.string.analysis_deselect_all)) }
+        else TextButton(onClick = onSelectAll) { Text(stringResource(R.string.browser_select_all)) }
     }
 }
 
@@ -646,7 +653,7 @@ private fun FilesTab(
                 selected = f.path in selected,
                 onToggle = { onToggle(f.path) },
                 onLongClick = { onOpenFolder(f.path.substringBeforeLast('/')) },
-                subtitle = if (showDate) "${Format.size(f.size)} · modifié ${Format.relative(f.lastModified)}"
+                subtitle = if (showDate) stringResource(R.string.analysis_size_modified, Format.size(f.size), Format.relative(f.lastModified))
                 else "${Format.size(f.size)} · ${f.path.substringBeforeLast('/').substringAfterLast('/')}",
                 modifier = Modifier.animateItem().cascadeIn(i, key = f.path),
             )
@@ -680,9 +687,9 @@ private fun DuplicatesTab(
                 FilledTonalButton(onClick = onKeepNewest, shapes = ButtonDefaults.shapes()) {
                     Icon(Icons.Rounded.Star, null, Modifier.size(ButtonDefaults.IconSize))
                     Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                    Text("Garder le plus récent")
+                    Text(stringResource(R.string.analysis_keep_newest))
                 }
-                TextButton(onClick = onClear) { Text("Aucun") }
+                TextButton(onClick = onClear) { Text(stringResource(R.string.analysis_none)) }
             }
         },
         controls = controls,
@@ -690,9 +697,9 @@ private fun DuplicatesTab(
         empty = {
             EmptyState(
                 Icons.Rounded.ContentCopy,
-                if (searching != null) "Recherche en cours…" else "Aucun doublon",
-                message = if (searching != null) "Comparaison des fichiers de plus de ${Format.size(minBytes)}."
-                else "Aucun fichier identique de plus de ${Format.size(minBytes)} n'a été trouvé.",
+                if (searching != null) stringResource(R.string.settings_update_checking) else stringResource(R.string.analysis_no_duplicates),
+                message = if (searching != null) stringResource(R.string.analysis_comparing, Format.size(minBytes))
+                else stringResource(R.string.analysis_no_duplicates_body, Format.size(minBytes)),
             )
         },
     ) {
@@ -710,12 +717,12 @@ private fun DuplicatesTab(
                     }
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        "${g.files.size} copies de ${Format.size(g.size)}",
+                        stringResource(R.string.analysis_copies_of, g.files.size, Format.size(g.size)),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f),
                     )
-                    Text("${Format.size(g.wasted)} récupérables", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.analysis_reclaimable_amount, Format.size(g.wasted)), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             val newest = g.newest
@@ -725,7 +732,7 @@ private fun DuplicatesTab(
                     selected = f.path in selected,
                     onToggle = { onToggle(f.path) },
                     onLongClick = { onOpenFolder(f.path.substringBeforeLast('/')) },
-                    subtitle = (if (f === newest) "Plus récent · " else "") + "${Format.relative(f.lastModified)} · ${f.path.substringBeforeLast('/').substringAfterLast('/')}",
+                    subtitle = (if (f === newest) stringResource(R.string.ops_newer) + " · " else "") + "${Format.relative(f.lastModified)} · ${f.path.substringBeforeLast('/').substringAfterLast('/')}",
                     highlight = f === newest,
                     modifier = Modifier.animateItem().cascadeIn(gi + i, key = f.path),
                 )
@@ -754,7 +761,7 @@ private fun EmptyDirsTab(
         selectionActions = { SelectAllActions(selCount == dirs.size, onSelectAll, onClear) },
         controls = null,
         isEmpty = dirs.isEmpty(),
-        empty = { EmptyState(Icons.Rounded.FolderOff, "Aucun dossier vide", message = "Votre stockage est bien rangé.") },
+        empty = { EmptyState(Icons.Rounded.FolderOff, stringResource(R.string.analysis_no_empty), message = stringResource(R.string.analysis_no_empty_body)) },
     ) {
         itemsIndexed(dirs, key = { _, d -> d }) { i, d ->
             SelectableRow(
@@ -815,6 +822,7 @@ private fun SelectableRow(
             .clip(MaterialTheme.shapes.large)
             .background(bg)
             .combinedClickable(interactionSource = interaction, indication = androidx.compose.material3.ripple(), onClick = onToggle, onLongClick = onLongClick)
+            .selectionSemantics(selected, onToggle)
             .pressScale(interaction, 0.97f)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -852,7 +860,7 @@ private fun LargeThresholdControl(
     Column(Modifier.padding(horizontal = 24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "Taille minimale : ${if (mb >= 1000) "${mb / 1000} Go" else "$mb Mo"}",
+                stringResource(R.string.analysis_min_size_value, if (mb >= 1000) stringResource(R.string.settings_gb_value, mb / 1000) else stringResource(R.string.settings_mb_value, mb)),
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.weight(1f),
             )
@@ -917,19 +925,19 @@ private fun OldThresholdControl(
 ) {
     val haptics = rememberHaptics()
     Column(Modifier.padding(horizontal = 24.dp)) {
-        Text("Non modifiés et jamais ouverts depuis", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.analysis_old_since), style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(6.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OLD_STEPS.forEach { (days, label) ->
                 FilterChip(
                     selected = currentDays == days,
                     onClick = { haptics.tick(); onChange(days) },
-                    label = { Text(label) },
+                    label = { Text(stringResource(label)) },
                 )
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text("Taille minimale", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.analysis_min_size), style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(6.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OLD_SIZE_STEPS.forEach { kb ->
@@ -959,7 +967,7 @@ private fun DuplicateThresholdControl(
     val haptics = rememberHaptics()
     val kb = steps[index.toInt().coerceIn(0, steps.lastIndex)]
     Column(Modifier.padding(horizontal = 24.dp)) {
-        Text("Taille minimale : ${kbLabel(kb)}", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.analysis_min_size_value, kbLabel(kb)), style = MaterialTheme.typography.labelLarge)
         if (steps.size > 1) {
             Slider(
                 value = index,
@@ -976,7 +984,7 @@ private fun DuplicateThresholdControl(
             val (done, total) = progress ?: (0 to 0)
             Column {
                 Text(
-                    if (total > 0) "Comparaison des petits fichiers… $done / $total" else "Recherche des fichiers de même taille…",
+                    if (total > 0) stringResource(R.string.analysis_comparing_small, done, total) else stringResource(R.string.analysis_same_size),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -994,7 +1002,7 @@ private fun DuplicateThresholdControl(
 private fun FloorNote(floorBytes: Long) {
     if (floorBytes <= StorageAnalyzer.POOL_MIN_BYTES) return
     Text(
-        "Très nombreux fichiers : seuls ceux de plus de ${Format.size(floorBytes)} sont analysés.",
+        stringResource(R.string.analysis_many_files, Format.size(floorBytes)),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 6.dp),

@@ -1,5 +1,7 @@
 package com.karelisio.fichio.tags
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.compose.runtime.Immutable
 import com.karelisio.fichio.data.db.FichioDatabase
 import com.karelisio.fichio.data.db.FileTagEntity
@@ -75,11 +77,14 @@ class TagsRepository(private val db: FichioDatabase) {
 /** Default names/slots. Pure. */
 object TagPalette {
     const val COUNT = 7
-    private val NAMES = listOf("Rouge", "Orange", "Jaune", "Vert", "Bleu", "Violet", "Gris")
+    private val NAMES = intArrayOf(
+        R.string.tag_red, R.string.tag_orange, R.string.tag_yellow, R.string.tag_green,
+        R.string.tag_blue, R.string.tag_purple, R.string.tag_grey,
+    )
     /** Base hues of slots 0..5 (slot 6 is neutral). */
     val HUES = floatArrayOf(4f, 28f, 48f, 135f, 212f, 278f)
 
-    fun defaultName(slot: Int): String = NAMES.getOrElse(slot) { "Étiquette ${slot + 1}" }
+    fun defaultName(slot: Int): String = NAMES.getOrNull(slot)?.let { Strings.get(it) } ?: Strings.get(R.string.tag_default_numbered, slot + 1)
 
     fun defaults(): List<TagEntity> = (0 until COUNT).map { TagEntity(id = it + 1L, name = "", color = it, position = it) }
 
