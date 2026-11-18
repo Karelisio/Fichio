@@ -82,8 +82,17 @@ object TestEnv {
         }
     }
 
-    /** System back, through the activity's OnBackPressedDispatcher (as a real key press). */
-    fun pressBack() = instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+    /**
+     * System back through the resumed activity's OnBackPressedDispatcher — the path a completed
+     * back gesture takes (OnBackInvokedCallback → dispatcher). An injected KEYCODE_BACK is not
+     * reliably routed to the app on the CI emulator with enableOnBackInvokedCallback.
+     */
+    fun pressBack() = instrumentation.runOnMainSync {
+        val activity = androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+            .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)
+            .firstOrNull() as? androidx.activity.ComponentActivity
+        checkNotNull(activity) { "no resumed activity" }.onBackPressedDispatcher.onBackPressed()
+    }
 
     fun ComposeTestRule.waitForText(text: String, substring: Boolean = false, timeoutMs: Long = 15_000) =
         waitUntil(timeoutMs) { onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty() }
