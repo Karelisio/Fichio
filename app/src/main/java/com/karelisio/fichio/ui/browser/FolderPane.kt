@@ -67,11 +67,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -270,15 +272,18 @@ private fun FolderContent(
     val openedAt = remember(path) { SystemClock.uptimeMillis() }
     val isCurrent = path == pane.path
 
+    // One stable callbacks object per folder: rows never recompose because of a new lambda.
+    val currentOnActivate by rememberUpdatedState(onActivate)
+    val currentOnOpenFile by rememberUpdatedState(onOpenFile)
     val actions = remember(pane, path) {
         ItemActions(
             onClick = { e ->
-                onActivate()
+                currentOnActivate()
                 if (pane.inSelection) { pane.toggle(e); haptics.tick() }
                 else if (e.isDirectory) pane.open(e.path)
-                else onOpenFile(e)
+                else currentOnOpenFile(e)
             },
-            onLongClick = { e -> onActivate(); haptics.longPress(); pane.select(e) },
+            onLongClick = { e -> currentOnActivate(); haptics.longPress(); pane.select(e) },
         )
     }
 
@@ -314,7 +319,6 @@ private fun FolderContent(
             }
             is Listing.Loaded -> {
                 val entries = listing.entries
-                val selection = if (isCurrent) pane.selection else emptyMap()
                 val header: @Composable (Modifier) -> Unit = { m ->
                     FolderHeader(path, listing, volumes, m.drawer(path), pane.receivedTick)
                 }
@@ -334,8 +338,9 @@ private fun FolderContent(
                             item(key = "#header", contentType = "header") { header(Modifier) }
                             itemsIndexed(entries, key = { _, e -> e.path }, contentType = { _, e -> if (e.isDirectory) 0 else 1 }) { i, e ->
                                 val cascade = remember { SystemClock.uptimeMillis() - openedAt < 450 }
+                                val selected = pane.rememberIsSelected(e.path, isCurrent)
                                 FileListRow(
-                                    e, e.path in selection, e.path in favorites, actions,
+                                    e, selected, e.path in favorites, actions,
                                     Modifier.animateItem().cascadeIn(i, path, cascade),
                                     drawerKey = if (e.isDirectory) Modifier.drawer(e.path) else Modifier,
                                 )
@@ -358,8 +363,9 @@ private fun FolderContent(
                                 val cascade = remember { SystemClock.uptimeMillis() - openedAt < 450 }
                                 val m = Modifier.animateItem().cascadeIn(i, path, cascade)
                                 val dk = if (e.isDirectory) Modifier.drawer(e.path) else Modifier
-                                if (view.mode == ViewMode.GRID) FileGridCell(e, e.path in selection, e.path in favorites, actions, m, dk)
-                                else FileLargeCell(e, e.path in selection, e.path in favorites, actions, m, dk)
+                                val selected = pane.rememberIsSelected(e.path, isCurrent)
+                                if (view.mode == ViewMode.GRID) FileGridCell(e, selected, e.path in favorites, actions, m, dk)
+                                else FileLargeCell(e, selected, e.path in favorites, actions, m, dk)
                             }
                         }
                     }
@@ -378,6 +384,17 @@ private fun FolderContent(
             }
         }
     }
+}
+
+/**
+ * Selection state of one row, derived so that toggling an item only recomposes the rows whose
+ * state actually changed (reading [PaneState.selection] directly would invalidate every visible
+ * row, the selection map being a single snapshot state object).
+ */
+@Composable
+private fun PaneState.rememberIsSelected(path: String, isCurrent: Boolean): Boolean {
+    val state = remember(this, path, isCurrent) { derivedStateOf { isCurrent && selection.containsKey(path) } }
+    return state.value
 }
 
 /** The "drawer front": big card with the folder's shape, name and live stats. */

@@ -1,0 +1,115 @@
+name: Baseline profile
+
+# Manual: regenerates the baseline profile (startup + home + browser scroll) on an emulator with
+# :baselineprofile, uploads it and, optionally, opens a PR that commits it under
+# app/src/release/generated/baselineProfiles/. The hand-written app/src/main/baseline-prof.txt
+# stays as a floor; both are merged at build time.
+
+on:
+  workflow_dispatch:
+    inputs:
+      open_pr:
+        description: Ouvrir une PR avec le profil régénéré
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
+      # API 33+: profiles can be collected without root.
+      API_LEVEL: 34
+      EMULATOR_OPTIONS: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        run: |
+          ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          SDKMANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "${ANDROID_SDK_ROOT}/cmdline-tools" -name sdkmanager -type f 2>/dev/null | sort | tail -n1)"
+          fi
+          yes | "${SDKMANAGER}" --licenses > /dev/null 2>&1 || true
+          "${SDKMANAGER}" --install "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Build the profiled app and the generator
+        run: ./gradlew :app:assembleNonMinifiedRelease :baselineprofile:assembleNonMinifiedRelease --stacktrace
+
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ env.API_LEVEL }}-google_apis-x86_64-pixel_6-v1
+
+      - name: Create AVD and snapshot for caching
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ env.API_LEVEL }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-options: ${{ env.EMULATOR_OPTIONS }}
+          disable-animations: false
+          script: echo "AVD snapshot generated."
+
+      - name: Generate the baseline profile
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ env.API_LEVEL }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save ${{ env.EMULATOR_OPTIONS }}
+          disable-animations: true
+          script: ./gradlew :app:generateReleaseBaselineProfile --stacktrace
+
+      - name: Upload the profile
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-profile-${{ github.run_number }}
+          path: app/src/release/generated/baselineProfiles/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Open a PR with the regenerated profile
+        if: inputs.open_pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: baseline-profile/update
+          commit-message: "profil de référence : régénération sur émulateur (API ${{ env.API_LEVEL }})"
+          title: "Profil de référence régénéré"
+          body: |
+            Profil généré par `:baselineprofile` (démarrage, accueil, défilement du navigateur) sur
+            émulateur API ${{ env.API_LEVEL }}, run #${{ github.run_number }}.
+          add-paths: app/src/release/generated/baselineProfiles/**

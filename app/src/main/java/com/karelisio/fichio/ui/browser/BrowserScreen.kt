@@ -215,8 +215,6 @@ fun BrowserScreen(nav: NavHostController, initialPath: String?, newTab: Boolean)
         vm.tabs.forEach { it.clearSelection() }; vm.secondary?.clearSelection()
     }
 
-    val selectionCount = pane.selection.size
-
     CompositionLocalProvider(LocalPaneDrag provides drag) {
         Scaffold(
             topBar = {
@@ -226,7 +224,7 @@ fun BrowserScreen(nav: NavHostController, initialPath: String?, newTab: Boolean)
                     label = "topbar",
                 ) { selecting ->
                     if (selecting) SelectionTopBar(
-                        count = selectionCount,
+                        count = pane.selection.size,
                         onClose = { pane.clearSelection() },
                         onSelectAll = { pane.selectAll(); haptics.tick() },
                         onInvert = { pane.invertSelection(); haptics.tick() },
@@ -294,7 +292,7 @@ fun BrowserScreen(nav: NavHostController, initialPath: String?, newTab: Boolean)
                         enter = slideInVertically(bouncy()) { it } + fadeIn(),
                         exit = slideOutVertically { it } + fadeOut(),
                     ) {
-                        if (picker != null) PickerBar(selectionCount) { pickerResult(pane.selectedEntries().filter { !it.isDirectory }.map { it.path }) }
+                        if (picker != null) PickerBar(pane.selection.size) { pickerResult(pane.selectedEntries().filter { !it.isDirectory }.map { it.path }) }
                         else SelectionToolbar(
                             entries = pane.selectedEntries(),
                             favorites = favorites,

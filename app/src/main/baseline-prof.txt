@@ -1,0 +1,76 @@
+# Hand-written baseline profile (human-readable format), merged with the profiles shipped by the
+# libraries and with the generated one (src/release/generated/baselineProfiles, produced by
+# :baselineprofile). Hot paths: cold start, home screen, browser list scrolling, previews.
+# H = hot, S = startup, P = post-startup; ** matches any class/method suffix.
+
+# ---- Fichio: the whole app (small next to the libraries; R8 rewrites these rules) ----
+HSPLcom/karelisio/fichio/**->**(**)**
+Lcom/karelisio/fichio/**;
+
+# ---- Compose runtime: composition, snapshots, recomposer (every frame) ----
+HSPLandroidx/compose/runtime/**->**(**)**
+Landroidx/compose/runtime/**;
+
+# ---- Compose UI: layout nodes, measure/draw, input, semantics, text layout ----
+HSPLandroidx/compose/ui/node/**->**(**)**
+HSPLandroidx/compose/ui/layout/**->**(**)**
+HSPLandroidx/compose/ui/platform/**->**(**)**
+HSPLandroidx/compose/ui/graphics/**->**(**)**
+HSPLandroidx/compose/ui/draw/**->**(**)**
+HSPLandroidx/compose/ui/input/pointer/**->**(**)**
+HSPLandroidx/compose/ui/text/**->**(**)**
+HSPLandroidx/compose/ui/unit/**->**(**)**
+HSPLandroidx/compose/ui/Modifier**->**(**)**
+Landroidx/compose/ui/node/**;
+Landroidx/compose/ui/layout/**;
+Landroidx/compose/ui/platform/**;
+
+# ---- Compose foundation: lazy lists/grids (browser), gestures, scroll, text, shapes ----
+HSPLandroidx/compose/foundation/lazy/**->**(**)**
+HSPLandroidx/compose/foundation/gestures/**->**(**)**
+HSPLandroidx/compose/foundation/layout/**->**(**)**
+HSPLandroidx/compose/foundation/text/**->**(**)**
+HSPLandroidx/compose/foundation/shape/**->**(**)**
+HSPLandroidx/compose/foundation/Clickable**->**(**)**
+HSPLandroidx/compose/foundation/Background**->**(**)**
+HSPLandroidx/compose/foundation/ScrollKt**->**(**)**
+HSPLandroidx/compose/foundation/ScrollState**->**(**)**
+Landroidx/compose/foundation/lazy/**;
+
+# ---- Compose animation (springs of the drawer, gauge, selection) ----
+HSPLandroidx/compose/animation/core/**->**(**)**
+HSPLandroidx/compose/animation/**->**(**)**
+
+# ---- Material 3 components on the hot screens ----
+HSPLandroidx/compose/material3/ColorScheme**->**(**)**
+HSPLandroidx/compose/material3/MaterialTheme**->**(**)**
+HSPLandroidx/compose/material3/Typography**->**(**)**
+HSPLandroidx/compose/material3/Shapes**->**(**)**
+HSPLandroidx/compose/material3/Surface**->**(**)**
+HSPLandroidx/compose/material3/TextKt**->**(**)**
+HSPLandroidx/compose/material3/IconKt**->**(**)**
+HSPLandroidx/compose/material3/IconButton**->**(**)**
+HSPLandroidx/compose/material3/Button**->**(**)**
+HSPLandroidx/compose/material3/Scaffold**->**(**)**
+HSPLandroidx/compose/material3/FloatingActionButton**->**(**)**
+HSPLandroidx/compose/material3/ripple/**->**(**)**
+HSPLandroidx/compose/material3/internal/**->**(**)**
+HSPLandroidx/compose/material3/LoadingIndicator**->**(**)**
+HSPLandroidx/compose/material3/MaterialShapes**->**(**)**
+HSPLandroidx/graphics/shapes/**->**(**)**
+
+# ---- Navigation, lifecycle, activity ----
+HSPLandroidx/navigation/**->**(**)**
+HSPLandroidx/lifecycle/**->**(**)**
+HSPLandroidx/activity/**->**(**)**
+HSPLandroidx/core/splashscreen/**->**(**)**
+
+# ---- Data at startup: DataStore (settings read in onCreate), Room (tabs, favourites) ----
+HSPLandroidx/datastore/**->**(**)**
+HSPLandroidx/room/**->**(**)**
+HSPLandroidx/sqlite/**->**(**)**
+
+# ---- Thumbnails and coroutines ----
+HSPLcoil3/**->**(**)**
+HSPLkotlinx/coroutines/**->**(**)**
+Lkotlinx/coroutines/**;

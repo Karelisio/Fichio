@@ -4,6 +4,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -74,7 +75,10 @@ class PaneState(
 
     /** Selected paths of the *current* folder. */
     val selection = mutableStateMapOf<String, FileEntry>()
-    val inSelection: Boolean get() = selection.isNotEmpty()
+    // Derived: readers (top bar, FAB, back handlers) are invalidated only when selection mode
+    // starts or ends, not on every toggled item.
+    private val inSelectionState = derivedStateOf { selection.isNotEmpty() }
+    val inSelection: Boolean get() = inSelectionState.value
 
     /** Folder that just received files (drives the spring "pop" of its header). */
     var receivedTick by mutableStateOf(0)
