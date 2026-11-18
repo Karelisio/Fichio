@@ -15,7 +15,10 @@ import com.karelisio.fichio.data.db.FichioDatabase
 import com.karelisio.fichio.data.prefs.SettingsRepository
 import com.karelisio.fichio.ops.OperationManager
 import com.karelisio.fichio.ops.UndoManager
+import com.karelisio.fichio.search.ContentIndexer
+import com.karelisio.fichio.search.ContentSearchPrefs
 import com.karelisio.fichio.search.SearchIndexer
+import com.karelisio.fichio.tags.TagsRepository
 import com.karelisio.fichio.shizuku.ShizukuManager
 import com.karelisio.fichio.trash.TrashRepository
 import com.karelisio.fichio.ui.components.FichioImageLoader
@@ -55,6 +58,8 @@ class AppContainer(context: Context) {
     val favorites: FavoritesRepository by lazy { FavoritesRepository(database) }
     val recents: RecentsRepository by lazy { RecentsRepository(database, fileSystems, appScope) }
     val indexer: SearchIndexer by lazy { SearchIndexer(appContext, database, fileSystems, appScope) }
+    val contentIndexer: ContentIndexer by lazy { ContentIndexer(appContext, database, appScope, ContentSearchPrefs(appContext)) }
+    val tags: TagsRepository by lazy { TagsRepository(database) }
 }
 
 class FichioApp : Application(), SingletonImageLoader.Factory {
@@ -73,6 +78,7 @@ class FichioApp : Application(), SingletonImageLoader.Factory {
         container.volumes.refresh()
         runCatching { container.shizuku.init() }
         runCatching { container.indexer.start() }
+        runCatching { container.contentIndexer.start(container.indexer.reindexed) }
         runCatching { com.karelisio.fichio.trash.TrashPurgeWorker.schedule(this) }
         // Favourites → dynamic shortcuts + widget; widget free space after each operation.
         runCatching { com.karelisio.fichio.shortcuts.Shortcuts.observeFavorites(this, container.appScope) }

@@ -100,6 +100,10 @@ class SearchIndexer(
     private val scanLock = Mutex()
     @Volatile private var started = false
 
+    private val _reindexed = kotlinx.coroutines.flow.MutableSharedFlow<Collection<String>>(extraBufferCapacity = 16)
+    /** Folders just re-listed after an in-app change (drives the on-the-fly content index). */
+    val reindexed: kotlinx.coroutines.flow.SharedFlow<Collection<String>> = _reindexed
+
     /** Starts listening to in-app changes and schedules the periodic full scan. */
     fun start() {
         if (started) return
@@ -118,7 +122,10 @@ class SearchIndexer(
                 if (dirs.isEmpty()) continue
                 runCatching {
                     val s = settings.current()
-                    if (s.searchIndexEnabled) reindexDirs(dirs, s.showHidden)
+                    if (s.searchIndexEnabled) {
+                        reindexDirs(dirs, s.showHidden)
+                        _reindexed.tryEmit(dirs)
+                    }
                 }.onFailure { Log.w(TAG, "Incremental index failed", it) }
             }
         }

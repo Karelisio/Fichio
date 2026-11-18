@@ -9,6 +9,10 @@ sealed interface Route {
     /** File browser. [path] null = restore tabs / primary storage. */
     @Serializable data class Browser(val path: String? = null, val newTab: Boolean = false) : Route
     @Serializable data class Category(val category: String) : Route
+    /** Home smart folder ([com.karelisio.fichio.search.SmartFolder] name), shown by the category screen. */
+    @Serializable data class Smart(val kind: String) : Route
+    /** Items carrying one colour tag, shown by the category screen. */
+    @Serializable data class Tagged(val tagId: Long) : Route
     @Serializable data class Search(val scopePath: String? = null) : Route
     @Serializable data object Trash : Route
     @Serializable data class Preview(val path: String) : Route

@@ -111,7 +111,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material.icons.automirrored.rounded.Article
+import androidx.compose.material.icons.automirrored.rounded.Label
+import com.karelisio.fichio.container
 import com.karelisio.fichio.core.fs.StoragePaths
+import com.karelisio.fichio.tags.Tag
+import com.karelisio.fichio.tags.TagDots
+import com.karelisio.fichio.tags.TagLabel
 import com.karelisio.fichio.core.model.FileEntry
 import com.karelisio.fichio.core.model.FileType
 import com.karelisio.fichio.core.util.Format
@@ -156,6 +162,8 @@ data class SearchUiState(
     val fromIndex: Boolean = true,
     /** Increments with every new result set, used to replay the cascade. */
     val generation: Int = 0,
+    /** Content-match snippets by path. */
+    val snippets: Map<String, String> = emptyMap(),
 )
 
 enum class SizeFilter(val label: String, val min: Long?, val max: Long?) {
@@ -211,8 +219,10 @@ fun FileType.label(): String = when (this) {
 class SearchViewModel(context: Context, initialScope: String?) : ViewModel() {
     private val repo = SearchRepository(context)
     private val history = SearchHistory(context)
+    private val content = context.container.contentIndexer
+    private val tagRepo = context.container.tags
 
-    private val _query = MutableStateFlow(SearchQuery(scopePath = initialScope))
+    private val _query = MutableStateFlow(SearchQuery(scopePath = initialScope, inContent = content.prefs.enabled.value))
     val query: StateFlow<SearchQuery> = _query.asStateFlow()
 
     private val _history = MutableStateFlow(history.load())
@@ -228,10 +238,13 @@ class SearchViewModel(context: Context, initialScope: String?) : ViewModel() {
         .debounce { if (it.text.isBlank()) 0L else 120L }
         .distinctUntilChanged()
         .flatMapLatest { q -> repo.results(q).map { q to it } }
-        .map { (q, out) -> SearchUiState(q, out.items, out.scanning, out.fromIndex, ++gen) }
+        .map { (q, out) -> SearchUiState(q, out.items, out.scanning, out.fromIndex, ++gen, out.snippets) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchUiState(_query.value))
 
     val indexCount: StateFlow<Int> = repo.indexCount().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), -1)
+    val contentCount: StateFlow<Int> = content.indexedCount.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), -1)
+    val tags: StateFlow<List<Tag>> = tagRepo.tags.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val tagSlots: StateFlow<Map<String, List<Int>>> = tagRepo.slotsByPath.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     init {
         viewModelScope.launch { extensionSuggestions = repo.topExtensions() }
@@ -247,6 +260,15 @@ class SearchViewModel(context: Context, initialScope: String?) : ViewModel() {
         if (ext.isEmpty()) q else q.copy(extensions = if (ext in q.extensions) q.extensions - ext else q.extensions + ext)
     }
     fun clearExtensions() = _query.update { it.copy(extensions = emptySet()) }
+    fun toggleTag(id: Long) = _query.update { q -> q.copy(tagIds = if (id in q.tagIds) q.tagIds - id else q.tagIds + id) }
+    fun clearTags() = _query.update { it.copy(tagIds = emptySet()) }
+
+    /** "Rechercher aussi dans le contenu": remembered, and starts/stops the content index. */
+    fun toggleContent() {
+        val on = !_query.value.inContent
+        content.setEnabled(on)
+        _query.update { it.copy(inContent = on) }
+    }
 
     fun selectSize(f: SizeFilter?) {
         size = f
@@ -261,7 +283,7 @@ class SearchViewModel(context: Context, initialScope: String?) : ViewModel() {
 
     fun clearFilters() {
         size = null; date = null
-        _query.update { SearchQuery(text = it.text, scopePath = it.scopePath) }
+        _query.update { SearchQuery(text = it.text, scopePath = it.scopePath, inContent = it.inContent) }
     }
 
     fun saveTerm(term: String) { _history.value = history.add(term) }
@@ -282,6 +304,8 @@ fun SearchScreen(scopePath: String?, onOpen: (FileEntry) -> Unit, onBack: () -> 
     val query by vm.query.collectAsStateWithLifecycle()
     val recent by vm.recent.collectAsStateWithLifecycle()
     val indexCount by vm.indexCount.collectAsStateWithLifecycle()
+    val contentCount by vm.contentCount.collectAsStateWithLifecycle()
+    val tagSlots by vm.tagSlots.collectAsStateWithLifecycle()
     val haptics = rememberHaptics()
     val keyboard = LocalSoftwareKeyboardController.current
     val focus = LocalFocusManager.current
@@ -317,7 +341,7 @@ fun SearchScreen(scopePath: String?, onOpen: (FileEntry) -> Unit, onBack: () -> 
             },
         )
         FilterRow(vm, query, initialScope = scopePath)
-        StatusLine(ui, query, indexCount)
+        StatusLine(ui, query, indexCount, contentCount)
 
         Box(Modifier.fillMaxSize().imePadding()) {
             when {
@@ -340,6 +364,8 @@ fun SearchScreen(scopePath: String?, onOpen: (FileEntry) -> Unit, onBack: () -> 
                         ResultRow(
                             file = f,
                             terms = highlightTerms(ui.query.text),
+                            snippet = ui.snippets[f.path],
+                            tagSlots = tagSlots[f.path].orEmpty(),
                             onClick = { open(f) },
                             modifier = Modifier.animateItem().cascadeIn(i, key = ui.generation to f.path, enabled = i < 16),
                         )
@@ -422,6 +448,7 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
     var extSheet by remember { mutableStateOf(false) }
     var sizeMenu by remember { mutableStateOf(false) }
     var dateMenu by remember { mutableStateOf(false) }
+    var tagMenu by remember { mutableStateOf(false) }
 
     LazyRow(
         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -521,6 +548,56 @@ private fun FilterRow(vm: SearchViewModel, query: SearchQuery, initialScope: Str
                 leadingIcon = { Icon(Icons.Rounded.Tag, null, Modifier.size(18.dp)) },
                 trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, null, Modifier.size(18.dp)) },
             )
+        }
+        item(key = "content") {
+            FilterChip(
+                selected = query.inContent,
+                onClick = { haptics.tick(); vm.toggleContent() },
+                label = { Text("Dans le contenu") },
+                leadingIcon = {
+                    AnimatedContent(query.inContent, label = "contentIcon") { on ->
+                        Icon(if (on) Icons.Rounded.Check else Icons.AutoMirrored.Rounded.Article, null, Modifier.size(18.dp))
+                    }
+                },
+            )
+        }
+        item(key = "tags") {
+            val tags by vm.tags.collectAsStateWithLifecycle()
+            val sel = tags.filter { it.id in query.tagIds }
+            Box {
+                FilterChip(
+                    selected = sel.isNotEmpty(),
+                    onClick = { haptics.tick(); tagMenu = true },
+                    label = {
+                        Text(
+                            when (sel.size) {
+                                0 -> "Étiquette"
+                                1 -> sel.first().displayName
+                                else -> "${sel.first().displayName} +${sel.size - 1}"
+                            },
+                            maxLines = 1,
+                        )
+                    },
+                    leadingIcon = {
+                        if (sel.isEmpty()) Icon(Icons.AutoMirrored.Rounded.Label, null, Modifier.size(18.dp))
+                        else TagDots(sel.map { it.slot }, size = 12.dp)
+                    },
+                    trailingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, null, Modifier.size(18.dp)) },
+                )
+                DropdownMenu(expanded = tagMenu, onDismissRequest = { tagMenu = false }) {
+                    tags.forEach { t ->
+                        DropdownMenuItem(
+                            text = { TagLabel(t, showCount = true) },
+                            onClick = { haptics.tick(); vm.toggleTag(t.id) },
+                            trailingIcon = { if (t.id in query.tagIds) Icon(Icons.Rounded.Check, null) },
+                        )
+                    }
+                    if (query.tagIds.isNotEmpty()) {
+                        HorizontalDivider()
+                        DropdownMenuItem(text = { Text("Toutes les étiquettes") }, onClick = { vm.clearTags(); tagMenu = false })
+                    }
+                }
+            }
         }
         item(key = "folders") {
             FilterChip(
@@ -626,7 +703,7 @@ private val FILTER_TYPES = listOf(
 )
 
 @Composable
-private fun StatusLine(ui: SearchUiState, query: SearchQuery, indexCount: Int) {
+private fun StatusLine(ui: SearchUiState, query: SearchQuery, indexCount: Int, contentCount: Int) {
     AnimatedVisibility(
         visible = query.isActive,
         enter = expandVertically(bouncy()) + fadeIn(),
@@ -659,13 +736,24 @@ private fun StatusLine(ui: SearchUiState, query: SearchQuery, indexCount: Int) {
                 Icon(Icons.Rounded.TravelExplore, "Recherche sans index", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             } else if (!ui.scanning && indexCount == 0) {
                 Text("Indexation en cours…", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else if (!ui.scanning && query.inContent && contentCount == 0) {
+                Text("Lecture du contenu en cours…", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else if (!ui.scanning && query.inContent && contentCount > 0) {
+                Text("+ contenu de ${Format.items(contentCount)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
 
 @Composable
-private fun ResultRow(file: IndexedFile, terms: List<String>, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun ResultRow(
+    file: IndexedFile,
+    terms: List<String>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    snippet: String? = null,
+    tagSlots: List<Int> = emptyList(),
+) {
     val interaction = remember { MutableInteractionSource() }
     val entry = remember(file) { file.toEntry() }
     val cs = MaterialTheme.colorScheme
@@ -683,7 +771,10 @@ private fun ResultRow(file: IndexedFile, terms: List<String>, onClick: () -> Uni
         FileThumbnail(entry, size = 48.dp)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.MiddleEllipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.MiddleEllipsis, modifier = Modifier.weight(1f, fill = false))
+                if (tagSlots.isNotEmpty()) { Spacer(Modifier.width(6.dp)); TagDots(tagSlots) }
+            }
             Text(
                 displayParent(file.parent),
                 style = MaterialTheme.typography.bodySmall,
@@ -691,6 +782,24 @@ private fun ResultRow(file: IndexedFile, terms: List<String>, onClick: () -> Uni
                 maxLines = 1,
                 overflow = TextOverflow.StartEllipsis,
             )
+            if (snippet != null) {
+                val snippetStyle = SpanStyle(background = cs.tertiaryContainer, color = cs.onTertiaryContainer, fontWeight = FontWeight.Bold)
+                val text = remember(snippet, snippetStyle) { snippetText(snippet, snippetStyle) }
+                Surface(
+                    color = cs.surfaceContainerHigh,
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Text(
+                        text,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
+            }
         }
         Spacer(Modifier.width(8.dp))
         Column(horizontalAlignment = Alignment.End) {
@@ -708,6 +817,13 @@ private fun displayParent(parent: String): String {
         primary.isNotEmpty() && parent == primary -> "Stockage interne"
         primary.isNotEmpty() && parent.startsWith("$primary/") -> "Interne › " + parent.removePrefix("$primary/").replace("/", " › ")
         else -> parent
+    }
+}
+
+/** FTS snippet → text with every matched term styled. */
+fun snippetText(raw: String, style: SpanStyle): AnnotatedString = buildAnnotatedString {
+    Snippets.segments(raw).forEach { (part, marked) ->
+        if (marked) { val start = length; append(part); addStyle(style, start, length) } else append(part)
     }
 }
 

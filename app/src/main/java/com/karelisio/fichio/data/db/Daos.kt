@@ -143,7 +143,7 @@ interface FileIndexDao {
     fun observeCount(): Flow<Int>
 
     /** Arbitrary filtered search built by the search repository (FTS MATCH + filters). */
-    @RawQuery(observedEntities = [FileIndexEntity::class])
+    @RawQuery(observedEntities = [FileIndexEntity::class, FileTagEntity::class])
     fun observeSearch(query: SupportSQLiteQuery): Flow<List<IndexedFile>>
 
     @RawQuery

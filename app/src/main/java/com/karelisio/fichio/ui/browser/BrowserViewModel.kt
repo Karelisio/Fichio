@@ -33,6 +33,9 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
     val favorites = c.favorites.favorites.map { list -> list.map { it.path }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
     val volumes = c.volumes.volumes
+    /** Path → colour tag slots, shared by every pane. */
+    val tagSlots = c.tags.slotsByPath
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val tabs = mutableStateListOf<PaneState>()
     var selectedTab by mutableIntStateOf(0)
