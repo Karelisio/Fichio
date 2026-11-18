@@ -64,6 +64,8 @@ import com.karelisio.fichio.ui.components.pressScale
 import com.karelisio.fichio.ui.navigation.sharedElementKey
 import com.karelisio.fichio.ui.theme.LocalReduceMotion
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -78,13 +80,23 @@ private val childCountCache = object : LinkedHashMap<String, Int>(512, 0.75f, tr
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Int>?) = size > 4000
 }
 
+/**
+ * At most this many `File.list()` in flight: flinging through a folder of 10 000 sub-folders
+ * would otherwise queue thousands of directory reads on Dispatchers.IO (64 threads) and starve
+ * the listing / thumbnails. Rows scrolled away before getting a permit are simply cancelled.
+ */
+internal const val CHILD_COUNT_PARALLELISM = 4
+internal val childCountPermits = Semaphore(CHILD_COUNT_PARALLELISM)
+
 @Composable
 private fun rememberChildCount(entry: FileEntry): Int? {
     if (!entry.isDirectory || StoragePaths.isRestricted(entry.path)) return null
     val key = "${entry.path}@${entry.lastModified}"
     val v by produceState(childCountCache[key], key) {
         if (value == null) {
-            value = withContext(Dispatchers.IO) { File(entry.path).list()?.size ?: 0 }.also { childCountCache[key] = it }
+            value = childCountPermits.withPermit {
+                withContext(Dispatchers.IO) { File(entry.path).list()?.size ?: 0 }
+            }.also { childCountCache[key] = it }
         }
     }
     return v

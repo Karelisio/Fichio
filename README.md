@@ -215,6 +215,19 @@ dépôt public dédié et changer `UPDATE_REPO` dans `app/build.gradle.kts`.
 
 ## Tests
 
-`app/src/test/` (JVM + Robolectric) : opérations et conflits, renommage en lot, corbeille, détection des
-doublons, jeton et garde de chemins du serveur local, archives, versions de mise à jour, requêtes de
-recherche, tri naturel, et tests de rendu de l'accueil, de la jauge et du navigateur.
+`app/src/test/` (JVM + Robolectric, `./gradlew testDebugUnitTest`) : opérations et conflits, renommage
+en lot, corbeille, détection des doublons, jeton et garde de chemins du serveur local, archives, versions
+de mise à jour, requêtes de recherche, tri naturel, rendu de l'accueil, de la jauge et du navigateur ;
+politique de migration Room (aucune migration destructive hors v1, une `Migration` par version > 2 dans
+`FichioDatabase.MIGRATIONS`), contraintes batterie des tâches de fond, budget de 150 ms pour lister et
+trier 10 000 entrées.
+
+`app/src/androidTest/` (appareil ou émulateur, `./gradlew connectedDebugAndroidTest`) : démarrage à
+froid (onboarding / accueil), accueil → navigateur → dossier → retour, aperçus texte et PDF (régression
+de la double fermeture), migrations Room avec `MigrationTestHelper` sur les schémas de `app/schemas`, base
+v1 étrangère. L'accès à tous les fichiers est accordé par `appops`. En CI, ce job émulateur (API 34) tourne
+sur chaque PR et sur `main`, et la publication en dépend.
+
+Profil de référence : `app/src/main/baseline-prof.txt` (écrit à la main) + profil généré par le module
+`:baselineprofile` (`./gradlew :app:generateReleaseBaselineProfile`, ou le workflow manuel
+« Baseline profile »), installé par `profileinstaller`.

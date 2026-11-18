@@ -7,7 +7,9 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequest
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.karelisio.fichio.container
@@ -43,6 +45,42 @@ object IndexRules {
         if (!showHidden && segs.any { it.startsWith(".") }) return true
         return false
     }
+}
+
+/**
+ * WorkManager requests of the *full* scan (walks every volume: minutes of I/O on a full phone).
+ * The incremental re-index of folders touched in the app does not go through WorkManager and
+ * stays immediate (see [SearchIndexer.start]).
+ *
+ * Periodic scan: battery not low + **charging**. Charging was chosen over `setRequiresDeviceIdle`:
+ * the idle state depends on Doze maintenance windows that aggressive OEM battery managers
+ * (MagicOS/Honor, the target device) rarely grant to third-party apps, so an idle-only job could
+ * starve for days, and idle jobs cannot use backoff. Phones charge almost every night, which
+ * gives a predictable window where the scan costs no battery. The in-app incremental index keeps
+ * results fresh in between.
+ *
+ * One-shot scan (first launch, manual rescan): battery not low only, so that it starts quickly.
+ */
+object IndexScheduling {
+    fun periodicConstraints(): Constraints = Constraints.Builder()
+        .setRequiresBatteryNotLow(true)
+        .setRequiresCharging(true)
+        .setRequiresStorageNotLow(true)
+        .build()
+
+    fun oneShotConstraints(): Constraints = Constraints.Builder()
+        .setRequiresBatteryNotLow(true)
+        .build()
+
+    fun periodicRequest(): PeriodicWorkRequest =
+        PeriodicWorkRequestBuilder<IndexWorker>(6, TimeUnit.HOURS, 1, TimeUnit.HOURS)
+            .setConstraints(periodicConstraints())
+            .build()
+
+    fun oneShotRequest(): OneTimeWorkRequest =
+        OneTimeWorkRequestBuilder<IndexWorker>()
+            .setConstraints(oneShotConstraints())
+            .build()
 }
 
 /**
@@ -108,15 +146,13 @@ class SearchIndexer(
     }
 
     private fun schedulePeriodic(wm: WorkManager) {
-        val req = PeriodicWorkRequestBuilder<IndexWorker>(6, TimeUnit.HOURS, 1, TimeUnit.HOURS)
-            .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).setRequiresStorageNotLow(true).build())
-            .build()
-        wm.enqueueUniquePeriodicWork(PERIODIC_WORK, ExistingPeriodicWorkPolicy.KEEP, req)
+        // UPDATE (not KEEP): installs that scheduled the work with older constraints pick up the
+        // new ones without losing their period.
+        wm.enqueueUniquePeriodicWork(PERIODIC_WORK, ExistingPeriodicWorkPolicy.UPDATE, IndexScheduling.periodicRequest())
     }
 
     private fun enqueueOnce(wm: WorkManager, policy: ExistingWorkPolicy) {
-        val req = OneTimeWorkRequestBuilder<IndexWorker>().build()
-        wm.enqueueUniqueWork(ONCE_WORK, policy, req)
+        wm.enqueueUniqueWork(ONCE_WORK, policy, IndexScheduling.oneShotRequest())
     }
 
     private fun hasStorageAccess(): Boolean = runCatching { Environment.isExternalStorageManager() }.getOrDefault(false)

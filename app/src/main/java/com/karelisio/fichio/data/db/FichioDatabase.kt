@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 
 @Database(
     entities = [
@@ -18,7 +19,7 @@ import androidx.room.RoomDatabase
         RecentEntity::class,
     ],
     // v1 = the 0.1.x app (different schema, same file name): dropped on upgrade.
-    version = 2,
+    version = FichioDatabase.VERSION,
     exportSchema = true,
 )
 abstract class FichioDatabase : RoomDatabase() {
@@ -34,10 +35,24 @@ abstract class FichioDatabase : RoomDatabase() {
     companion object {
         const val NAME = "fichio.db"
 
-        fun build(context: Context): FichioDatabase =
-            Room.databaseBuilder(context.applicationContext, FichioDatabase::class.java, NAME)
+        /**
+         * Current schema version. Any schema change bumps it AND adds a [Migration] to
+         * [MIGRATIONS] (checked by DatabaseMigrationPolicyTest + the instrumented
+         * DatabaseMigrationTest against the exported schemas in app/schemas).
+         */
+        const val VERSION = 2
+
+        /** Explicit migrations, one per bump from v2 on (e.g. MIGRATION_2_3). Never destructive. */
+        val MIGRATIONS: List<Migration> = listOf()
+
+        /** The only versions whose data may be dropped: v1 = 0.1.x, an unrelated schema. */
+        internal val DESTRUCTIVE_FROM = intArrayOf(1)
+
+        fun build(context: Context, name: String = NAME): FichioDatabase =
+            Room.databaseBuilder(context.applicationContext, FichioDatabase::class.java, name)
+                .addMigrations(*MIGRATIONS.toTypedArray())
                 // 0.1.x shipped an unrelated schema under the same name/version 1: start fresh.
-                .fallbackToDestructiveMigrationFrom(true, 1)
+                .fallbackToDestructiveMigrationFrom(true, *DESTRUCTIVE_FROM)
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                 .build()
 

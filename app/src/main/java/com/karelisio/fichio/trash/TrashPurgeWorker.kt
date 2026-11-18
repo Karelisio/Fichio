@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequest
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -23,14 +24,18 @@ class TrashPurgeWorker(context: Context, params: WorkerParameters) : CoroutineWo
     companion object {
         private const val WORK_NAME = "fichio_trash_purge"
 
-        /** Schedules the periodic purge (no-op when already scheduled). */
+        /** Never on a low battery: the purge can delete gigabytes, it can wait a day. */
+        fun constraints(): Constraints = Constraints.Builder().setRequiresBatteryNotLow(true).build()
+
+        fun request(): PeriodicWorkRequest = PeriodicWorkRequestBuilder<TrashPurgeWorker>(1, TimeUnit.DAYS)
+            .setConstraints(constraints())
+            .setInitialDelay(15, TimeUnit.MINUTES)
+            .build()
+
+        /** Schedules the periodic purge (idempotent; UPDATE applies changed constraints). */
         fun schedule(context: Context) {
-            val request = PeriodicWorkRequestBuilder<TrashPurgeWorker>(1, TimeUnit.DAYS)
-                .setConstraints(Constraints.Builder().setRequiresBatteryNotLow(true).build())
-                .setInitialDelay(15, TimeUnit.MINUTES)
-                .build()
             WorkManager.getInstance(context.applicationContext)
-                .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, request)
+                .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request())
         }
     }
 }
