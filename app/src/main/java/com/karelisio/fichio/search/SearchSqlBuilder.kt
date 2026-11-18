@@ -18,10 +18,14 @@ data class SearchQuery(
     /** Lower-case extensions without dot. */
     val extensions: Set<String> = emptySet(),
     val includeFolders: Boolean = true,
+    /** Colour tag ids: keep items carrying at least one of them. */
+    val tagIds: Set<Long> = emptySet(),
+    /** Also match the indexed content of text files / PDFs ("Rechercher aussi dans le contenu"). */
+    val inContent: Boolean = false,
 ) {
     val hasFilters: Boolean
         get() = types.isNotEmpty() || minSize != null || maxSize != null || modifiedAfter != null ||
-            modifiedBefore != null || extensions.isNotEmpty() || !includeFolders
+            modifiedBefore != null || extensions.isNotEmpty() || !includeFolders || tagIds.isNotEmpty()
 
     /** True when there is something to search for. */
     val isActive: Boolean get() = text.isNotBlank() || hasFilters
@@ -106,6 +110,22 @@ object SearchSqlBuilder {
             where += "f.name LIKE ? ESCAPE '\\'"
             args += "%" + escapeLike(text) + "%"
         }
+        filters(q, where, args)
+        if (where.isNotEmpty()) sql.append(" WHERE ").append(where.joinToString(" AND "))
+
+        // Relevance: names starting with the query first, then most recent.
+        if (text.isNotEmpty()) {
+            sql.append(" ORDER BY CASE WHEN f.name LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END, f.modified DESC")
+            args += escapeLike(text) + "%"
+        } else {
+            sql.append(" ORDER BY f.modified DESC")
+        }
+        sql.append(" LIMIT ").append(limit.coerceIn(1, 5000))
+        return BuiltQuery(sql.toString(), args)
+    }
+
+    /** Every non-text filter of [q], as `f.` conditions + bound args (shared by name and content SQL). */
+    private fun filters(q: SearchQuery, where: MutableList<String>, args: MutableList<Any>) {
         q.scopePath?.trimEnd('/')?.takeIf { it.isNotEmpty() }?.let { scope ->
             where += "f.path LIKE ? ESCAPE '\\'"
             args += escapeLike(scope) + "/%"
@@ -128,16 +148,38 @@ object SearchSqlBuilder {
                 args.addAll(exts)
             }
         }
-        if (where.isNotEmpty()) sql.append(" WHERE ").append(where.joinToString(" AND "))
-
-        // Relevance: names starting with the query first, then most recent.
-        if (text.isNotEmpty()) {
-            sql.append(" ORDER BY CASE WHEN f.name LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END, f.modified DESC")
-            args += escapeLike(text) + "%"
-        } else {
-            sql.append(" ORDER BY f.modified DESC")
+        if (q.tagIds.isNotEmpty()) {
+            val ids = q.tagIds.sorted()
+            where += "f.path IN (SELECT path FROM file_tags WHERE tagId IN (" + ids.joinToString(",") { "?" } + "))"
+            args.addAll(ids)
         }
-        sql.append(" LIMIT ").append(limit.coerceIn(1, 5000))
+    }
+
+    /** Snippet markers around matched terms (control characters never present in indexed text). */
+    const val MARK_START = "\u0002"
+    const val MARK_END = "\u0003"
+    private const val SNIPPET_TOKENS = 14
+
+    /**
+     * Content search: files whose indexed text matches every token of the query (prefix match),
+     * with an FTS4 snippet around the hit. Null when the text has no indexable token.
+     */
+    fun buildContent(q: SearchQuery, limit: Int = LIMIT): BuiltQuery? {
+        val tokens = tokenize(q.text.trim())
+        if (tokens.isEmpty() || q.text.trim().length < 2) return null
+        val args = ArrayList<Any>()
+        val where = ArrayList<String>()
+        val sql = StringBuilder("SELECT ").append(COLUMNS)
+            .append(", snippet(content_fts, ?, ?, '…', 1, ").append(SNIPPET_TOKENS).append(") AS snippet")
+            .append(" FROM content_fts JOIN content_meta m ON m.id = content_fts.rowid JOIN file_index f ON f.path = m.path")
+        args += MARK_START
+        args += MARK_END
+        where += "content_fts MATCH ?"
+        args += ftsExpression(tokens)
+        where += "f.isDirectory = 0"
+        filters(q, where, args)
+        sql.append(" WHERE ").append(where.joinToString(" AND "))
+        sql.append(" ORDER BY f.modified DESC LIMIT ").append(limit.coerceIn(1, 5000))
         return BuiltQuery(sql.toString(), args)
     }
 

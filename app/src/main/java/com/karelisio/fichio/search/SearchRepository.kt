@@ -8,10 +8,12 @@ import com.karelisio.fichio.core.fs.FileSystems
 import com.karelisio.fichio.core.fs.StoragePaths
 import com.karelisio.fichio.core.model.FileEntry
 import com.karelisio.fichio.core.model.FileType
+import com.karelisio.fichio.data.db.ContentHit
 import com.karelisio.fichio.data.db.FichioDatabase
 import com.karelisio.fichio.data.db.IndexedFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -25,7 +27,25 @@ data class SearchOutcome(
     val items: List<IndexedFile>,
     val scanning: Boolean,
     val fromIndex: Boolean,
+    /** Path → FTS snippet (with [SearchSqlBuilder.MARK_START]/[SearchSqlBuilder.MARK_END]) for content matches. */
+    val snippets: Map<String, String> = emptyMap(),
 )
+
+fun ContentHit.toIndexed(): IndexedFile = IndexedFile(path, name, parent, extension, type, isDirectory, size, modified)
+
+/**
+ * Name matches first (in their relevance order), then files found only through their content
+ * (most recent first); snippets for every content hit. Pure, unit-tested.
+ */
+fun mergeContentResults(names: List<IndexedFile>, hits: List<ContentHit>, limit: Int = SearchSqlBuilder.LIMIT): Pair<List<IndexedFile>, Map<String, String>> {
+    val snippets = HashMap<String, String>()
+    hits.forEach { h -> h.snippet?.takeIf { it.isNotBlank() }?.let { snippets[h.path] = it } }
+    val seen = names.mapTo(HashSet()) { it.path }
+    val merged = ArrayList<IndexedFile>(minOf(limit, names.size + hits.size))
+    names.forEach { if (merged.size < limit) merged += it }
+    hits.forEach { h -> if (merged.size < limit && seen.add(h.path)) merged += h.toIndexed() }
+    return merged to snippets
+}
 
 fun IndexedFile.toEntry(): FileEntry = FileEntry(path, name, isDirectory, size, modified)
 
@@ -59,6 +79,12 @@ class SearchRepository(
         return db.fileIndex().observeSearch(SimpleSQLiteQuery(built.sql, built.argsArray))
     }
 
+    /** Content-index matches (empty when the text has no indexable token). */
+    fun contentHits(query: SearchQuery): Flow<List<ContentHit>> {
+        val built = SearchSqlBuilder.buildContent(query) ?: return flowOf(emptyList())
+        return db.content().observeHits(SimpleSQLiteQuery(built.sql, built.argsArray))
+    }
+
     /** Picks the index or the live walk for this query. */
     fun results(query: SearchQuery): Flow<SearchOutcome> = flow {
         if (!query.isActive) {
@@ -67,7 +93,10 @@ class SearchRepository(
         val scope = query.scopePath
         val useIndex = indexEnabled() && db.fileIndex().count() > 0 &&
             (scope == null || !StoragePaths.isRestricted(scope) && !StoragePaths.isInsideFichioDir(scope))
-        if (useIndex) {
+        if (useIndex && query.inContent && SearchSqlBuilder.buildContent(query) != null) {
+            combine(search(query), contentHits(query)) { names, hits -> mergeContentResults(names, hits) }
+                .collect { (items, snippets) -> emit(SearchOutcome(items, scanning = false, fromIndex = true, snippets = snippets)) }
+        } else if (useIndex) {
             search(query).collect { emit(SearchOutcome(it, scanning = false, fromIndex = true)) }
         } else {
             walk(query).collect { emit(it) }
@@ -79,6 +108,8 @@ class SearchRepository(
         if (!query.isActive) return emptyFlow()
         return flow {
             val hidden = showHidden()
+            val tagged: Set<String>? = if (query.tagIds.isEmpty()) null
+            else runCatching { db.tags().pathsWith(query.tagIds.toList()).toHashSet() }.getOrDefault(hashSetOf())
             val root = query.scopePath ?: StoragePaths.primary
             val needle = SearchSqlBuilder.normalize(query.text.trim())
             val found = ArrayList<IndexedFile>()
@@ -93,7 +124,9 @@ class SearchRepository(
                 for (c in children) {
                     if (!hidden && c.isHidden) continue
                     if (c.isDirectory && !StoragePaths.isInsideFichioDir(c.path)) stack.addLast(c.path)
-                    if (SearchSqlBuilder.matches(query, c.name, c.isDirectory, c.type, c.extension, c.size, c.lastModified, needle)) {
+                    if ((tagged == null || c.path in tagged) &&
+                        SearchSqlBuilder.matches(query, c.name, c.isDirectory, c.type, c.extension, c.size, c.lastModified, needle)
+                    ) {
                         found += c.toIndexed()
                         if (found.size >= SearchSqlBuilder.LIMIT) break
                     }

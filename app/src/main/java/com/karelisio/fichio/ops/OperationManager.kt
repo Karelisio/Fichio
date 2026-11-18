@@ -4,7 +4,6 @@ import android.content.Context
 import com.karelisio.fichio.container
 import com.karelisio.fichio.core.fs.FileSystems
 import com.karelisio.fichio.core.model.FileEntry
-import com.karelisio.fichio.data.FavoritesRepository
 import com.karelisio.fichio.ops.engine.ConflictAnswer
 import com.karelisio.fichio.ops.engine.EngineListener
 import com.karelisio.fichio.ops.engine.EngineResult
@@ -85,11 +84,13 @@ class OperationManager(
         val failed: Int = 0,
         val skipped: Int = 0,
         val error: String? = null,
-        /** Folder moves/renames to propagate to favourites. */
-        val movedDirs: List<Pair<String, String>> = emptyList(),
+        /** In-app moves/renames to propagate to favourites (folders) and tags (everything). */
+        val moved: List<Moved> = emptyList(),
         /** True when nothing at all succeeded: the job is reported FAILED. */
         val totalFailure: Boolean = false,
     )
+
+    private data class Moved(val from: String, val to: String, val isDirectory: Boolean)
 
     // ---------------------------------------------------------------- public queue API
 
@@ -113,7 +114,7 @@ class OperationManager(
             r.toOutcome(
                 undo = if (pairs.isNotEmpty())
                     UndoAction.Moved(pairs, "${Format2.items(pairs.size)} déplacé${plural(pairs.size)}") else null,
-                movedDirs = r.transfers.dirs(),
+                moved = r.transfers.moves(),
             )
         }
         _events.tryEmit(OperationEvent.Transfer(id, JobKind.MOVE, sources, destinationDir))
@@ -244,7 +245,7 @@ class OperationManager(
             renameOne(path, dest)
             val parent = PathUtil.parent(path)
             fs.notifyChanged(parent)
-            if (entry.isDirectory) onFolderMoved(path, dest)
+            onPathMoved(path, dest, entry.isDirectory)
             undo.record(UndoAction.Renamed(listOf(path to dest), "« ${entry.name} » renommé"))
             dest
         }
@@ -268,7 +269,7 @@ class OperationManager(
             val back = action.pairs.map { (from, to) -> to to from }
             val id = enqueue(JobKind.MOVE, "Annulation du déplacement", back.map { it.first }, null) { l ->
                 val r = engine.moveExact(back, l)
-                r.toOutcome(movedDirs = r.transfers.dirs())
+                r.toOutcome(moved = r.transfers.moves())
             }
             await(id)?.state == JobState.DONE
         }
@@ -420,8 +421,8 @@ class OperationManager(
         job?.destination?.let { touched += it }
         job?.sources?.forEach { touched += PathUtil.parent(it) }
         if (touched.isNotEmpty()) fs.notifyChanged(touched)
-        outcome?.movedDirs?.takeIf { it.isNotEmpty() }?.let { moved ->
-            scope.launch { moved.forEach { (from, to) -> onFolderMoved(from, to) } }
+        outcome?.moved?.takeIf { it.isNotEmpty() }?.let { moved ->
+            scope.launch { moved.forEach { onPathMoved(it.from, it.to, it.isDirectory) } }
         }
         val undoAction = outcome?.undo?.takeIf { state == JobState.DONE }
         undoAction?.let { undo.record(it) }
@@ -493,7 +494,7 @@ class OperationManager(
                     throw e
                 }
                 fs.notifyChanged(pairs.map { PathUtil.parent(it.first) })
-                pairs.filter { it.first in dirs }.forEach { (from, to) -> onFolderMoved(from, to) }
+                pairs.forEach { (from, to) -> onPathMoved(from, to, from in dirs) }
                 if (recordUndo) undo.record(UndoAction.Renamed(pairs, "${Format2.items(pairs.size)} renommé${plural(pairs.size)}"))
                 pairs.size
             }
@@ -528,22 +529,24 @@ class OperationManager(
         }
     }
 
-    private suspend fun onFolderMoved(from: String, to: String) {
-        val favorites: FavoritesRepository = runCatching { context.container.favorites }.getOrNull() ?: return
-        runCatching { favorites.onMoved(from, to) }
+    /** Keeps favourites (folders) and colour tags (files and folders) attached to moved items. */
+    private suspend fun onPathMoved(from: String, to: String, isDirectory: Boolean) {
+        val c = runCatching { context.container }.getOrNull() ?: return
+        if (isDirectory) runCatching { c.favorites.onMoved(from, to) }
+        runCatching { c.tags.onMoved(from, to) }
     }
 
-    private fun EngineResult.toOutcome(undo: UndoAction? = null, movedDirs: List<Pair<String, String>> = emptyList()) = Outcome(
+    private fun EngineResult.toOutcome(undo: UndoAction? = null, moved: List<Moved> = emptyList()) = Outcome(
         undo = undo,
         touched = touchedDirs,
         failed = failed,
         skipped = skipped,
         error = errors.firstOrNull(),
-        movedDirs = movedDirs,
+        moved = moved,
         totalFailure = failed > 0 && processed == 0 && transfers.isEmpty() && skipped == 0,
     )
 
-    private fun List<Transfer>.dirs() = filter { it.isDirectory }.map { it.from to it.to }
+    private fun List<Transfer>.moves() = map { Moved(it.from, it.to, it.isDirectory) }
 
     private fun titleFor(verb: String, paths: List<String>) =
         if (paths.size == 1) "$verb de « ${PathUtil.name(paths[0])} »" else "$verb de ${Format2.items(paths.size)}"

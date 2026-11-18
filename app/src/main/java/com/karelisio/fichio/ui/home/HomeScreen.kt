@@ -83,7 +83,13 @@ import com.karelisio.fichio.core.model.FileCategory
 import com.karelisio.fichio.core.model.FileEntry
 import com.karelisio.fichio.core.util.Format
 import com.karelisio.fichio.data.db.FavoriteEntity
+import com.karelisio.fichio.data.db.SmartCount
 import com.karelisio.fichio.preview.MiniPlayerBar
+import com.karelisio.fichio.search.SmartFolder
+import com.karelisio.fichio.tags.Tag
+import com.karelisio.fichio.tags.TagLabel
+import com.karelisio.fichio.ui.category.icon
+import com.karelisio.fichio.ui.category.shape
 import com.karelisio.fichio.shizuku.ShizukuState
 import com.karelisio.fichio.ui.components.AnimatedCounter
 import com.karelisio.fichio.ui.components.FileIcon
@@ -109,6 +115,8 @@ fun HomeScreen(nav: NavHostController) {
     val pinned by vm.pinned.collectAsStateWithLifecycle()
     val trashCount by vm.trashCount.collectAsStateWithLifecycle()
     val shizuku by vm.shizuku.collectAsStateWithLifecycle()
+    val smart by vm.smart.collectAsStateWithLifecycle()
+    val tags by vm.tags.collectAsStateWithLifecycle()
     var reorder by remember { mutableStateOf(false) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.refresh() }
@@ -143,6 +151,20 @@ fun HomeScreen(nav: NavHostController) {
                 CategoryGrid(state.categories, Modifier.cascadeIn(2)) { cat ->
                     if (cat == FileCategory.DOWNLOADS) browse(StoragePaths.downloads)
                     else nav.navigate(Route.Category(cat.name))
+                }
+            }
+            val smartShown = smart.filter { it.count > 0 }
+            if (smartShown.isNotEmpty()) {
+                item(key = "smartTitle") { SectionHeader("Dossiers intelligents") }
+                item(key = "smart") {
+                    SmartFolderRow(smartShown, Modifier.cascadeIn(3)) { kind -> nav.navigate(Route.Smart(kind.name)) }
+                }
+            }
+            val usedTags = tags.filter { it.count > 0 }
+            if (usedTags.isNotEmpty()) {
+                item(key = "tagTitle") { SectionHeader("Étiquettes") }
+                item(key = "tags") {
+                    TagChips(usedTags, Modifier.cascadeIn(4)) { nav.navigate(Route.Tagged(it.id)) }
                 }
             }
             if (recents.isNotEmpty()) {
@@ -357,6 +379,66 @@ private fun CategoryTile(s: CategoryStat, modifier: Modifier, onClick: () -> Uni
                     AnimatedCounter("${s.count}", style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
                     Text(" · ${Format.size(s.size)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SmartFolderRow(items: List<SmartCount>, modifier: Modifier, onOpen: (SmartFolder) -> Unit) {
+    LazyRow(modifier, contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(items, key = { it.kind }) { s ->
+            val kind = runCatching { SmartFolder.valueOf(s.kind) }.getOrNull() ?: return@items
+            SmartFolderCard(kind, s, Modifier.animateItem()) { onOpen(kind) }
+        }
+    }
+}
+
+@Composable
+private fun SmartFolderCard(kind: SmartFolder, stat: SmartCount, modifier: Modifier, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val haptics = rememberHaptics()
+    Surface(
+        onClick = { haptics.tick(); onClick() },
+        interactionSource = interaction,
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = modifier.width(156.dp).pressScale(interaction).sharedElementKey("smart-${kind.name}", bounds = true),
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(44.dp).clip(kind.shape().toShape()).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
+                    Icon(kind.icon(), null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                }
+                Spacer(Modifier.weight(1f))
+                AnimatedCounter("${stat.count}", style = MaterialTheme.typography.titleLarge.copy(color = MaterialTheme.colorScheme.primary))
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(kind.label, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                "${kind.description} · ${Format.size(stat.size)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TagChips(tags: List<Tag>, modifier: Modifier, onOpen: (Tag) -> Unit) {
+    val haptics = rememberHaptics()
+    FlowRow(modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        tags.forEach { t ->
+            val interaction = remember { MutableInteractionSource() }
+            Surface(
+                onClick = { haptics.tick(); onOpen(t) },
+                interactionSource = interaction,
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.pressScale(interaction).sharedElementKey("tag-${t.id}", bounds = true),
+            ) {
+                TagLabel(t, showCount = true, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
             }
         }
     }

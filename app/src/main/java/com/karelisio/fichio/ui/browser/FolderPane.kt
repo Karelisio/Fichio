@@ -143,6 +143,10 @@ fun FolderPane(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
     onActivate: () -> Unit = {},
+    /** Path → colour tag slots (pastilles). */
+    tags: Map<String, List<Int>> = emptyMap(),
+    /** Row swipe actions (list view); null disables swiping (picker). */
+    swipe: SwipeActions? = null,
 ) {
     val reduce = LocalReduceMotion.current
     val seek = remember(pane.id) { SeekableTransitionState(pane.path) }
@@ -193,6 +197,8 @@ fun FolderPane(
                     onOpenFile = onOpenFile,
                     onDrop = onDrop,
                     onActivate = onActivate,
+                    tags = tags,
+                    swipe = swipe,
                 )
             }
         }
@@ -213,6 +219,14 @@ private fun AnimatedContentTransitionScope<String>.drawerTransition(reduce: Bool
             (fadeOut(tween(200, delayMillis = 40)) + shrinkVertically(spec, shrinkTowards = Alignment.Top))
         else -> fadeIn(tween(220)) togetherWith fadeOut(tween(160))
     }.apply { targetContentZIndex = if (forward) 1f else 0f }.using(SizeTransform(clip = false))
+}
+
+/** List ↔ grid ↔ large thumbnails: zooms in the direction of the change. */
+private fun AnimatedContentTransitionScope<ViewMode>.viewModeTransition(reduce: Boolean): ContentTransform {
+    if (reduce) return fadeIn(tween(90)) togetherWith fadeOut(tween(90))
+    val bigger = targetState.ordinal > initialState.ordinal
+    return (fadeIn(tween(220, delayMillis = 40)) + scaleIn(spring(0.8f, Spring.StiffnessMediumLow), initialScale = if (bigger) 0.88f else 1.1f)) togetherWith
+        (fadeOut(tween(140)) + scaleOut(tween(240), targetScale = if (bigger) 1.08f else 0.92f))
 }
 
 /** Breadcrumb trail, horizontally scrollable, auto-scrolled to the current folder. */
@@ -263,10 +277,18 @@ private fun FolderContent(
     onOpenFile: (FileEntry) -> Unit,
     onDrop: (List<FileEntry>, String) -> Unit,
     onActivate: () -> Unit,
+    tags: Map<String, List<Int>>,
+    swipe: SwipeActions?,
 ) {
     val listing = pane.listing(path)
     val view = pane.view(path)
     val haptics = rememberHaptics()
+    val reduce = LocalReduceMotion.current
+    val paneDrag = LocalPaneDrag.current
+    var pinchScale by remember { mutableFloatStateOf(1f) }
+    val shownScale by androidx.compose.animation.core.animateFloatAsState(
+        if (reduce) 1f else pinchScale, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMedium), label = "pinch",
+    )
     val openedAt = remember(path) { SystemClock.uptimeMillis() }
     val isCurrent = path == pane.path
 
@@ -315,51 +337,76 @@ private fun FolderContent(
             is Listing.Loaded -> {
                 val entries = listing.entries
                 val selection = if (isCurrent) pane.selection else emptyMap()
-                val header: @Composable (Modifier) -> Unit = { m ->
-                    FolderHeader(path, listing, volumes, m.drawer(path), pane.receivedTick)
+                val header: @Composable (Modifier, Boolean) -> Unit = { m, live ->
+                    FolderHeader(path, listing, volumes, if (live) m.drawer(path) else m, pane.receivedTick)
                 }
                 if (entries.isEmpty()) {
                     Column(Modifier.fillMaxSize()) {
-                        header(Modifier)
+                        header(Modifier, true)
                         EmptyState(Icons.Rounded.FolderOff, "Dossier vide", message = if (listing.hiddenCount > 0) "${listing.hiddenCount} élément(s) caché(s)" else null)
                     }
-                } else when (view.mode) {
-                    ViewMode.LIST -> {
-                        val state = pane.listState(path)
-                        LazyColumn(
-                            state = state,
-                            contentPadding = contentPadding,
-                            modifier = Modifier.fillMaxSize().dragGestures(pane, path, entries, dualPane, onDrop, listState = state, gridState = null),
-                        ) {
-                            item(key = "#header", contentType = "header") { header(Modifier) }
-                            itemsIndexed(entries, key = { _, e -> e.path }, contentType = { _, e -> if (e.isDirectory) 0 else 1 }) { i, e ->
-                                val cascade = remember { SystemClock.uptimeMillis() - openedAt < 450 }
-                                FileListRow(
-                                    e, e.path in selection, e.path in favorites, actions,
-                                    Modifier.animateItem().cascadeIn(i, path, cascade),
-                                    drawerKey = if (e.isDirectory) Modifier.drawer(e.path) else Modifier,
-                                )
+                } else AnimatedContent(
+                    targetState = view.mode,
+                    transitionSpec = { viewModeTransition(reduce) },
+                    label = "viewMode",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { scaleX = shownScale; scaleY = shownScale }
+                        .pinchToChangeView(
+                            enabled = isCurrent && paneDrag?.active != true,
+                            onScale = { pinchScale = it },
+                            onStep = { zoomIn ->
+                                val next = PinchMath.next(pane.view(path).mode, zoomIn)
+                                if (next != null) { onActivate(); pane.setView(mode = next); haptics.confirm() } else haptics.reject()
+                            },
+                        ),
+                ) { mode ->
+                    // Only the incoming layout takes part in the drawer shared bounds.
+                    val live = mode == view.mode
+                    when (mode) {
+                        ViewMode.LIST -> {
+                            val state = pane.listState(path)
+                            val swipeOn = swipe != null && isCurrent && live && !pane.inSelection && paneDrag?.active != true
+                            LazyColumn(
+                                state = state,
+                                contentPadding = contentPadding,
+                                modifier = Modifier.fillMaxSize().dragGestures(pane, path, entries, dualPane, onDrop, listState = state, gridState = null),
+                            ) {
+                                item(key = "#header", contentType = "header") { header(Modifier, live) }
+                                itemsIndexed(entries, key = { _, e -> e.path }, contentType = { _, e -> if (e.isDirectory) 0 else 1 }) { i, e ->
+                                    val cascade = remember { SystemClock.uptimeMillis() - openedAt < 450 }
+                                    val itemModifier = Modifier.animateItem().cascadeIn(i, path, cascade)
+                                    val dk = if (e.isDirectory && live) Modifier.drawer(e.path) else Modifier
+                                    if (swipe != null) {
+                                        SwipeableRow(e, swipeOn, e.path in favorites, swipe, itemModifier) {
+                                            FileListRow(e, e.path in selection, e.path in favorites, actions, drawerKey = dk, tags = tags[e.path].orEmpty())
+                                        }
+                                    } else {
+                                        FileListRow(e, e.path in selection, e.path in favorites, actions, itemModifier, drawerKey = dk, tags = tags[e.path].orEmpty())
+                                    }
+                                }
                             }
                         }
-                    }
-                    ViewMode.GRID, ViewMode.LARGE -> {
-                        val state = pane.gridState(path)
-                        LazyVerticalGrid(
-                            columns = GridCells.Adaptive(if (view.mode == ViewMode.GRID) 104.dp else 160.dp),
-                            state = state,
-                            contentPadding = PaddingValues(
-                                start = 8.dp, end = 8.dp,
-                                bottom = contentPadding.calculateBottomPadding(),
-                            ),
-                            modifier = Modifier.fillMaxSize().dragGestures(pane, path, entries, dualPane, onDrop, listState = null, gridState = state),
-                        ) {
-                            item(key = "#header", span = { GridItemSpan(maxLineSpan) }, contentType = "header") { header(Modifier) }
-                            itemsIndexed(entries, key = { _, e -> e.path }, contentType = { _, e -> if (e.isDirectory) 0 else 1 }) { i, e ->
-                                val cascade = remember { SystemClock.uptimeMillis() - openedAt < 450 }
-                                val m = Modifier.animateItem().cascadeIn(i, path, cascade)
-                                val dk = if (e.isDirectory) Modifier.drawer(e.path) else Modifier
-                                if (view.mode == ViewMode.GRID) FileGridCell(e, e.path in selection, e.path in favorites, actions, m, dk)
-                                else FileLargeCell(e, e.path in selection, e.path in favorites, actions, m, dk)
+                        ViewMode.GRID, ViewMode.LARGE -> {
+                            val state = pane.gridState(path, large = mode == ViewMode.LARGE)
+                            LazyVerticalGrid(
+                                columns = GridCells.Adaptive(if (mode == ViewMode.GRID) 104.dp else 160.dp),
+                                state = state,
+                                contentPadding = PaddingValues(
+                                    start = 8.dp, end = 8.dp,
+                                    bottom = contentPadding.calculateBottomPadding(),
+                                ),
+                                modifier = Modifier.fillMaxSize().dragGestures(pane, path, entries, dualPane, onDrop, listState = null, gridState = state),
+                            ) {
+                                item(key = "#header", span = { GridItemSpan(maxLineSpan) }, contentType = "header") { header(Modifier, live) }
+                                itemsIndexed(entries, key = { _, e -> e.path }, contentType = { _, e -> if (e.isDirectory) 0 else 1 }) { i, e ->
+                                    val cascade = remember { SystemClock.uptimeMillis() - openedAt < 450 }
+                                    val m = Modifier.animateItem().cascadeIn(i, path, cascade)
+                                    val dk = if (e.isDirectory && live) Modifier.drawer(e.path) else Modifier
+                                    val t = tags[e.path].orEmpty()
+                                    if (mode == ViewMode.GRID) FileGridCell(e, e.path in selection, e.path in favorites, actions, m, dk, t)
+                                    else FileLargeCell(e, e.path in selection, e.path in favorites, actions, m, dk, t)
+                                }
                             }
                         }
                     }
@@ -367,9 +414,13 @@ private fun FolderContent(
                 if (entries.size > 60) {
                     FastScroller(
                         count = entries.size,
-                        firstVisible = { pane.listState(path).takeIf { view.mode == ViewMode.LIST }?.firstVisibleItemIndex ?: pane.gridState(path).firstVisibleItemIndex },
+                        firstVisible = { pane.firstVisible(path, view.mode) },
                         scrollTo = { idx ->
-                            if (view.mode == ViewMode.LIST) pane.listState(path).scrollToItem(idx + 1) else pane.gridState(path).scrollToItem(idx + 1)
+                            when (view.mode) {
+                                ViewMode.LIST -> pane.listState(path).scrollToItem(idx + 1)
+                                ViewMode.GRID -> pane.gridState(path).scrollToItem(idx + 1)
+                                ViewMode.LARGE -> pane.gridState(path, large = true).scrollToItem(idx + 1)
+                            }
                         },
                         label = { idx -> entries.getOrNull(idx)?.name?.firstOrNull()?.uppercaseChar()?.toString() ?: "" },
                         modifier = Modifier.align(Alignment.CenterEnd),

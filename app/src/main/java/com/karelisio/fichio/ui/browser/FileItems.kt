@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import com.karelisio.fichio.core.fs.StoragePaths
 import com.karelisio.fichio.core.model.FileEntry
 import com.karelisio.fichio.core.util.Format
+import com.karelisio.fichio.tags.TagDots
 import com.karelisio.fichio.ui.components.FileThumbnail
 import com.karelisio.fichio.ui.components.FlyRegistry
 import com.karelisio.fichio.ui.components.bouncy
@@ -164,6 +165,7 @@ fun FileListRow(
     actions: ItemActions,
     modifier: Modifier = Modifier,
     drawerKey: Modifier = Modifier,
+    tags: List<Int> = emptyList(),
 ) {
     val radius by animateDpAsState(if (selected) 28.dp else 20.dp, bouncy(), label = "radius")
     Row(
@@ -196,6 +198,10 @@ fun FileListRow(
                     Spacer(Modifier.width(4.dp))
                     Icon(Icons.Rounded.Star, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.tertiary)
                 }
+                if (tags.isNotEmpty()) {
+                    Spacer(Modifier.width(6.dp))
+                    TagDots(tags)
+                }
             }
             Text(
                 metaLine(entry),
@@ -215,6 +221,7 @@ fun FileGridCell(
     actions: ItemActions,
     modifier: Modifier = Modifier,
     drawerKey: Modifier = Modifier,
+    tags: List<Int> = emptyList(),
 ) {
     val radius by animateDpAsState(if (selected) 32.dp else 24.dp, bouncy(), label = "radius")
     Column(
@@ -231,6 +238,7 @@ fun FileGridCell(
             FileThumbnail(entry, size = 64.dp, modifier = Modifier.sharedElementKey("thumb-${entry.path}"))
             Box(Modifier.align(Alignment.TopEnd)) { SelectionCheck(selected) }
             if (favorite) Icon(Icons.Rounded.Star, null, Modifier.align(Alignment.BottomEnd).size(16.dp), tint = MaterialTheme.colorScheme.tertiary)
+            TagDots(tags, Modifier.align(Alignment.BottomStart), size = 10.dp)
         }
         Spacer(Modifier.height(6.dp))
         Text(
@@ -259,6 +267,7 @@ fun FileLargeCell(
     actions: ItemActions,
     modifier: Modifier = Modifier,
     drawerKey: Modifier = Modifier,
+    tags: List<Int> = emptyList(),
 ) {
     val radius by animateDpAsState(if (selected) 36.dp else 26.dp, bouncy(), label = "radius")
     val inset by animateDpAsState(if (selected) 6.dp else 0.dp, bouncy(), label = "inset")
@@ -288,6 +297,7 @@ fun FileLargeCell(
                 )
             }
         }
+        TagDots(tags, Modifier.align(Alignment.TopStart).padding(10.dp), size = 12.dp)
         Row(Modifier.align(Alignment.TopEnd).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             if (favorite) Icon(Icons.Rounded.Star, null, Modifier.size(18.dp).background(Color.Black.copy(0.3f), CircleShape).padding(2.dp), tint = Color.White)
             SelectionCheck(selected)

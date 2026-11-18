@@ -10,7 +10,8 @@ import kotlinx.coroutines.CancellationException
 /** Periodic / one-shot full scan of the storage into the search index. */
 class IndexWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result = try {
-        applicationContext.container.indexer.runFullScan()
+        val indexed = applicationContext.container.indexer.runFullScan()
+        if (indexed >= 0) runCatching { applicationContext.container.contentIndexer.onFullScanDone() }
         Result.success()
     } catch (e: CancellationException) {
         throw e

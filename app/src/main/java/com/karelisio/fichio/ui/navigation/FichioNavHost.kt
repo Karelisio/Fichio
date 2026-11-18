@@ -37,7 +37,10 @@ import com.karelisio.fichio.settings.SettingsScreen
 import com.karelisio.fichio.transfer.TransferScreen
 import com.karelisio.fichio.trash.TrashScreen
 import com.karelisio.fichio.ui.browser.BrowserScreen
+import com.karelisio.fichio.search.SmartFolder
 import com.karelisio.fichio.ui.category.CategoryScreen
+import com.karelisio.fichio.ui.category.SmartFolderScreen
+import com.karelisio.fichio.ui.category.TagScreen
 import com.karelisio.fichio.ui.home.HomeScreen
 import com.karelisio.fichio.ui.theme.LocalReduceMotion
 
@@ -89,6 +92,15 @@ private fun NavGraphBuilder.graph(nav: NavHostController) {
     composable<Route.Category> { e ->
         val r = e.toRoute<Route.Category>()
         Scoped { CategoryScreen(nav, FileCategory.valueOf(r.category)) }
+    }
+    composable<Route.Smart> { e ->
+        val r = e.toRoute<Route.Smart>()
+        val kind = runCatching { SmartFolder.valueOf(r.kind) }.getOrDefault(SmartFolder.SCREENSHOTS)
+        Scoped { SmartFolderScreen(nav, kind) }
+    }
+    composable<Route.Tagged> { e ->
+        val r = e.toRoute<Route.Tagged>()
+        Scoped { TagScreen(nav, r.tagId) }
     }
     composable<Route.Search> { e ->
         val r = e.toRoute<Route.Search>()

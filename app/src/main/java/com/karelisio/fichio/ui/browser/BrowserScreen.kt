@@ -37,6 +37,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DriveFileMove
+import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Add
@@ -134,6 +135,7 @@ import com.karelisio.fichio.ops.PropertiesSheet
 import com.karelisio.fichio.ops.RenameDialog
 import com.karelisio.fichio.preview.MiniPlayerBar
 import com.karelisio.fichio.shortcuts.Shortcuts
+import com.karelisio.fichio.tags.TagAssignSheet
 import com.karelisio.fichio.ui.components.AnimatedCounter
 import com.karelisio.fichio.ui.components.FileThumbnail
 import com.karelisio.fichio.ui.components.bouncy
@@ -154,6 +156,7 @@ private sealed interface BrowserDialog {
     data class Compress(val entries: List<FileEntry>, val dest: String) : BrowserDialog
     data class Extract(val path: String) : BrowserDialog
     data class Delete(val entries: List<FileEntry>) : BrowserDialog
+    data class Tags(val paths: List<String>) : BrowserDialog
     data object Operations : BrowserDialog
 }
 
@@ -175,6 +178,7 @@ fun BrowserScreen(nav: NavHostController, initialPath: String?, newTab: Boolean)
     val settings by vm.settings.collectAsStateWithLifecycle()
     val favorites by vm.favorites.collectAsStateWithLifecycle()
     val volumes by vm.volumes.collectAsStateWithLifecycle()
+    val tagSlots by vm.tagSlots.collectAsStateWithLifecycle()
     val clip by FileClipboard.content.collectAsStateWithLifecycle()
 
     val config = LocalConfiguration.current
@@ -216,6 +220,26 @@ fun BrowserScreen(nav: NavHostController, initialPath: String?, newTab: Boolean)
     }
 
     val selectionCount = pane.selection.size
+
+    // Row swipes (list view): left = trash (undo snackbar from the operation events),
+    // right = share a file / (un)favourite a folder. Not offered in the picker.
+    val swipe = if (picker != null) null else remember(settings.trashEnabled, favorites) {
+        SwipeActions(
+            onDelete = { e ->
+                if (!settings.trashEnabled) dialog = BrowserDialog.Delete(listOf(e))
+                else c.operations.trash(listOf(e.path))
+            },
+            onSecondary = { e ->
+                if (e.isDirectory) {
+                    val was = e.path in favorites
+                    vm.toggleFavorite(e.path)
+                    scope.launch { snackbar.showSnackbar(if (was) "« ${e.name} » retiré des favoris" else "« ${e.name} » ajouté aux favoris") }
+                } else {
+                    Opener.share(context, listOf(e.path))
+                }
+            },
+        )
+    }
 
     CompositionLocalProvider(LocalPaneDrag provides drag) {
         Scaffold(
@@ -263,16 +287,16 @@ fun BrowserScreen(nav: NavHostController, initialPath: String?, newTab: Boolean)
                     Row(Modifier.fillMaxSize()) {
                         PaneFrame(active = vm.activePane == 0, modifier = Modifier.weight(1f)) {
                             FolderPane(main, favorites, volumes, vm.activePane == 0, true, ::openFile, ::drop,
-                                contentPadding = bottomPad, onActivate = { vm.activePane = 0 })
+                                contentPadding = bottomPad, onActivate = { vm.activePane = 0 }, tags = tagSlots, swipe = swipe)
                         }
                         VerticalDivider(Modifier.padding(vertical = 24.dp))
                         PaneFrame(active = vm.activePane == 1, modifier = Modifier.weight(1f)) {
                             FolderPane(vm.secondary!!, favorites, volumes, vm.activePane == 1, true, ::openFile, ::drop,
-                                contentPadding = bottomPad, onActivate = { vm.activePane = 1 })
+                                contentPadding = bottomPad, onActivate = { vm.activePane = 1 }, tags = tagSlots, swipe = swipe)
                         }
                     }
                 } else {
-                    FolderPane(main, favorites, volumes, true, false, ::openFile, ::drop, contentPadding = bottomPad)
+                    FolderPane(main, favorites, volumes, true, false, ::openFile, ::drop, contentPadding = bottomPad, tags = tagSlots, swipe = swipe)
                 }
 
                 // Bottom stack: mini player, operations, paste bar, selection toolbar.
@@ -318,6 +342,7 @@ fun BrowserScreen(nav: NavHostController, initialPath: String?, newTab: Boolean)
                             onOpenInTab = { e -> if (vm.addTab(e.path)) pane.clearSelection() },
                             onPinShortcut = { e -> Shortcuts.pinFolder(context, e.path, e.name) },
                             onBatchRename = { dialog = BrowserDialog.BatchRename(pane.selectedEntries()) },
+                            onTags = { dialog = BrowserDialog.Tags(pane.selectedEntries().map { it.path }) },
                         )
                     }
                 }
@@ -353,6 +378,7 @@ fun BrowserScreen(nav: NavHostController, initialPath: String?, newTab: Boolean)
         is BrowserDialog.Compress -> CompressSheet(d.entries, d.dest, onDismiss = { dialog = null; pane.clearSelection() })
         is BrowserDialog.Extract -> ExtractSheet(d.path, onDismiss = { dialog = null; pane.clearSelection() })
         BrowserDialog.Operations -> OperationsSheet(onDismiss = { dialog = null })
+        is BrowserDialog.Tags -> TagAssignSheet(d.paths, onDismiss = { dialog = null; pane.clearSelection() })
         is BrowserDialog.Delete -> DeleteDialog(
             d.entries, trashEnabled = settings.trashEnabled,
             onDismiss = { dialog = null },
@@ -539,6 +565,7 @@ private fun SelectionToolbar(
     onOpenInTab: (FileEntry) -> Unit,
     onPinShortcut: (FileEntry) -> Unit,
     onBatchRename: () -> Unit,
+    onTags: () -> Unit,
 ) {
     var more by remember { mutableStateOf(false) }
     val single = entries.singleOrNull()
@@ -554,6 +581,7 @@ private fun SelectionToolbar(
         Box {
             IconButton(onClick = { more = true }) { Icon(Icons.Rounded.MoreVert, "Plus") }
             DropdownMenu(more, onDismissRequest = { more = false }, shape = RoundedCornerShape(20.dp)) {
+                DropdownMenuItem(text = { Text("Étiquettes…") }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.Label, null) }, onClick = { more = false; onTags() })
                 DropdownMenuItem(text = { Text("Compresser") }, leadingIcon = { Icon(Icons.Rounded.FolderZip, null) }, onClick = { more = false; onCompress() })
                 if (single != null && single.type == FileType.ARCHIVE) DropdownMenuItem(text = { Text("Extraire") }, leadingIcon = { Icon(Icons.Rounded.Unarchive, null) }, onClick = { more = false; onExtract(single) })
                 if (entries.size > 1) DropdownMenuItem(text = { Text("Renommer en lot") }, leadingIcon = { Icon(Icons.Rounded.Edit, null) }, onClick = { more = false; onBatchRename() })

@@ -113,7 +113,10 @@ com.karelisio.fichio
 ├── ops/                  moteur d'opérations pur JVM, file d'attente, service au premier plan,
 │                         notifications ProgressStyle, annulation, renommage en lot, dialogues
 ├── trash/                corbeille + purge WorkManager
-├── search/               indexeur FTS + écran de recherche
+├── search/               indexeur FTS (noms + contenu txt/md/code/csv/json/xml/html et PDF via
+│                         PdfRenderer sur Android 12+ avec extension S 13 / Android 15), dossiers
+│                         intelligents, écran de recherche
+├── tags/                 7 étiquettes de couleur nommables (Room tags/file_tags)
 ├── preview/              images, vidéo/audio (Media3 + MediaSession), PDF, texte/code, éditeur
 ├── archive/  apk/        lecture/écriture d'archives, inspection/installation/extraction d'APK
 ├── shizuku/              AIDL + UserService + ShizukuManager

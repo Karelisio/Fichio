@@ -15,7 +15,15 @@ import com.karelisio.fichio.data.db.PinnedEntity
 import com.karelisio.fichio.ops.JobState
 import com.karelisio.fichio.ops.OperationEvent
 import com.karelisio.fichio.shizuku.ShizukuState
+import androidx.sqlite.db.SimpleSQLiteQuery
+import com.karelisio.fichio.data.db.SmartCount
+import com.karelisio.fichio.search.SmartFolders
+import com.karelisio.fichio.tags.Tag
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -68,6 +76,22 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val trashCount: StateFlow<Int> = c.trash.count.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
     val shizuku: StateFlow<ShizukuState> = c.shizuku.state
+    /** Smart folder counters, recomputed (debounced) when the name index changes. */
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    val smart: StateFlow<List<SmartCount>> = c.database.invalidationTracker.createFlow("file_index")
+        .debounce(400)
+        .mapLatest {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val roots = c.volumes.volumes.value.map { it.path }.ifEmpty { listOf(StoragePaths.primary) }
+                    val q = SmartFolders.countQuery(roots, StoragePaths.downloads)
+                    c.database.collections().counts(SimpleSQLiteQuery(q.sql, q.argsArray))
+                }.getOrDefault(emptyList())
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val tags: StateFlow<List<Tag>> = c.tags.tags
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val busy: StateFlow<Boolean> = c.operations.jobs.map { jobs -> jobs.any { it.state == JobState.RUNNING } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 

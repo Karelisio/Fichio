@@ -92,7 +92,16 @@ class PaneState(
     }
 
     fun listState(path: String): LazyListState = listStates.getOrPut(path) { LazyListState() }
-    fun gridState(path: String): LazyGridState = gridStates.getOrPut(path) { LazyGridState() }
+    /** Grid scroll state; the large-thumbnail grid has its own so both can live during the pinch transition. */
+    fun gridState(path: String, large: Boolean = false): LazyGridState =
+        gridStates.getOrPut(if (large) "$path#large" else path) { LazyGridState() }
+
+    /** First visible index (header = 0) of [path] in [mode]. */
+    fun firstVisible(path: String, mode: ViewMode): Int = when (mode) {
+        ViewMode.LIST -> listState(path).firstVisibleItemIndex
+        ViewMode.GRID -> gridState(path).firstVisibleItemIndex
+        ViewMode.LARGE -> gridState(path, large = true).firstVisibleItemIndex
+    }
 
     // ---- Navigation -------------------------------------------------------------------------
 
@@ -193,6 +202,15 @@ class PaneState(
         val p = path
         val current = view(p)
         val next = FolderView(mode ?: current.mode, sort ?: current.sort, custom = true)
+        if (next.mode != current.mode) {
+            // Keep the same items on screen when switching view (menu or pinch).
+            val anchor = firstVisible(p, current.mode)
+            when (next.mode) {
+                ViewMode.LIST -> listState(p).requestScrollToItem(anchor)
+                ViewMode.GRID -> gridState(p).requestScrollToItem(anchor)
+                ViewMode.LARGE -> gridState(p, large = true).requestScrollToItem(anchor)
+            }
+        }
         views[p] = next
         (listings[p] as? Listing.Loaded)?.let { l -> listings[p] = l.copy(entries = Sorting.sort(l.entries, next.sort)) }
         scope.launch(Dispatchers.IO) {
