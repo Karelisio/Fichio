@@ -1,6 +1,8 @@
 package com.karelisio.fichio.ui
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -37,5 +39,27 @@ class BrowserBackTest {
         waitText("dedans.txt")
         compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
         waitText("dehors.txt")
+    }
+
+    /** Leaving and re-entering the browser composition (e.g. back from a preview) keeps the folder. */
+    @Test fun reenteringKeepsCurrentFolder() {
+        val root = tmp.newFolder("Racine2")
+        root.resolve("Sous").mkdirs()
+        root.resolve("Sous/dedans.txt").writeText("x")
+        root.resolve("dehors.txt").writeText("y")
+        var shown by androidx.compose.runtime.mutableStateOf(true)
+        compose.setContent {
+            FichioTheme(dynamicColor = false) {
+                val nav = rememberNavController()
+                if (shown) BrowserScreen(nav, root.absolutePath, false) else androidx.compose.material3.Text("aperçu")
+            }
+        }
+        waitText("dehors.txt")
+        compose.onNodeWithText("Sous").performClick()
+        waitText("dedans.txt")
+        shown = false
+        waitText("aperçu")
+        shown = true
+        waitText("dedans.txt")
     }
 }

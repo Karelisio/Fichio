@@ -59,10 +59,9 @@ class BrowserViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Restores persisted tabs, then applies the requested path (shortcut, home tile…). */
     fun init(initialPath: String?, newTab: Boolean) {
-        if (restored) {
-            if (initialPath != null) openPath(initialPath, newTab)
-            return
-        }
+        // The route's path is applied once per browser entry. The screen re-enters composition
+        // when coming back from a preview: re-applying it would jump back to the start folder.
+        if (restored) return
         restored = true
         viewModelScope.launch {
             val saved = withContext(Dispatchers.IO) { runCatching { db.tabs().all() }.getOrDefault(emptyList()) }
