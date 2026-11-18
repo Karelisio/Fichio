@@ -1,5 +1,7 @@
 package com.karelisio.fichio.ops
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.compose.runtime.Immutable
 import com.karelisio.fichio.ops.engine.Names
 import java.util.Locale
@@ -111,7 +113,7 @@ object BatchRename {
         siblingNames: (parent: String) -> Collection<String> = { emptyList() },
     ): BatchRenamePreview {
         val compiled = compile(rules)
-        val patternError = compiled.exceptionOrNull()?.let { "Expression régulière invalide" }
+        val patternError = compiled.exceptionOrNull()?.let { Strings.get(R.string.ops_rename_bad_regex) }
         val pattern = compiled.getOrNull()
         val computed = sources.mapIndexed { i, s ->
             s to if (patternError != null) s.name else newName(rules, s.name, s.isDirectory, i, pattern)
@@ -134,7 +136,7 @@ object BatchRename {
             when {
                 new == s.name -> RenamePreviewItem(s.path, s.name, new, RenameStatus.UNCHANGED)
                 invalid != null -> RenamePreviewItem(s.path, s.name, new, RenameStatus.INVALID, invalid)
-                (counts[new.lowercase()] ?: 0) > 1 -> RenamePreviewItem(s.path, s.name, new, RenameStatus.COLLISION, "Ce nom est déjà utilisé")
+                (counts[new.lowercase()] ?: 0) > 1 -> RenamePreviewItem(s.path, s.name, new, RenameStatus.COLLISION, Strings.get(R.string.ops_rename_name_taken))
                 else -> RenamePreviewItem(s.path, s.name, new, RenameStatus.OK)
             }
         }

@@ -1,5 +1,7 @@
 package com.karelisio.fichio.ops
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.content.Context
 import com.karelisio.fichio.container
 import com.karelisio.fichio.core.fs.FileSystems
@@ -105,12 +107,12 @@ class OperationManager(
     // ---------------------------------------------------------------- public queue API
 
     fun copy(sources: List<String>, destinationDir: String): Long {
-        val id = enqueue(JobKind.COPY, titleFor("Copie", sources), sources, destinationDir) { l ->
+        val id = enqueue(JobKind.COPY, titleFor(R.string.ops_title_copy, sources), sources, destinationDir) { l ->
             val r = engine.copy(sources, destinationDir, l)
             val created = r.transfers.map { it.to }
             r.toOutcome(
                 undo = if (created.isNotEmpty() && r.replaced == 0)
-                    UndoAction.Created(created, "${Format2.items(created.size)} copié${plural(created.size)}") else null,
+                    UndoAction.Created(created, Strings.plural(R.plurals.ops_undo_copied, created.size)) else null,
             )
         }
         _events.tryEmit(OperationEvent.Transfer(id, JobKind.COPY, sources, destinationDir))
@@ -118,12 +120,12 @@ class OperationManager(
     }
 
     fun move(sources: List<String>, destinationDir: String): Long {
-        val id = enqueue(JobKind.MOVE, titleFor("Déplacement", sources), sources, destinationDir) { l ->
+        val id = enqueue(JobKind.MOVE, titleFor(R.string.ops_title_move, sources), sources, destinationDir) { l ->
             val r = engine.move(sources, destinationDir, l)
             val pairs = r.transfers.map { it.from to it.to }
             r.toOutcome(
                 undo = if (pairs.isNotEmpty())
-                    UndoAction.Moved(pairs, "${Format2.items(pairs.size)} déplacé${plural(pairs.size)}") else null,
+                    UndoAction.Moved(pairs, Strings.plural(R.plurals.ops_undo_moved, pairs.size)) else null,
                 moved = r.transfers.moves(),
             )
         }
@@ -133,11 +135,11 @@ class OperationManager(
 
     /** Moves to the Fichio trash (undoable). Falls back to permanent delete when trash is disabled. */
     fun trash(paths: List<String>): Long =
-        enqueue(JobKind.TRASH, titleFor("Mise à la corbeille", paths), paths, null) { l ->
+        enqueue(JobKind.TRASH, titleFor(R.string.ops_title_trash, paths), paths, null) { l ->
             val enabled = runCatching { context.container.settings.current().trashEnabled }.getOrDefault(true)
             val (inTrash, others) = paths.partition { trash.isInTrash(it) }
             if (!enabled || others.isEmpty()) {
-                update(l.id) { it.copy(kind = JobKind.DELETE, title = titleFor("Suppression", paths)) }
+                update(l.id) { it.copy(kind = JobKind.DELETE, title = titleFor(R.string.ops_title_delete, paths)) }
                 return@enqueue engine.delete(paths, l).toOutcome()
             }
             val tracker = ProgressTracker(l::onProgress)
@@ -160,7 +162,7 @@ class OperationManager(
             val failed = errors.size + deleted.failed
             Outcome(
                 undo = if (trashed.isNotEmpty())
-                    UndoAction.Trashed(trashed, "${Format2.items(trashed.size)} mis à la corbeille") else null,
+                    UndoAction.Trashed(trashed, Strings.plural(R.plurals.ops_undo_trashed, trashed.size)) else null,
                 touched = paths.map { PathUtil.parent(it) },
                 failed = failed,
                 error = (errors + deleted.errors).firstOrNull(),
@@ -169,19 +171,19 @@ class OperationManager(
         }
 
     fun deletePermanently(paths: List<String>): Long =
-        enqueue(JobKind.DELETE, titleFor("Suppression", paths), paths, null) { l ->
+        enqueue(JobKind.DELETE, titleFor(R.string.ops_title_delete, paths), paths, null) { l ->
             engine.delete(paths, l).toOutcome()
         }
 
     /** Restores trash items (queued job). */
     fun restoreFromTrash(ids: List<String>): Long =
-        enqueue(JobKind.RESTORE, if (ids.size == 1) "Restauration" else "Restauration de ${Format2.items(ids.size)}", emptyList(), null) { l ->
+        enqueue(JobKind.RESTORE, if (ids.size == 1) Strings.get(R.string.ops_restore_one) else Strings.get(R.string.ops_restore_many, Format2.items(ids.size)), emptyList(), null) { l ->
             restoreIds(ids, l)
         }
 
     /** Permanently deletes trash items (queued job). */
     fun deleteFromTrash(ids: List<String>): Long =
-        enqueue(JobKind.DELETE, "Suppression définitive de ${Format2.items(ids.size)}", emptyList(), null) { l ->
+        enqueue(JobKind.DELETE, Strings.get(R.string.ops_delete_forever_many, Format2.items(ids.size)), emptyList(), null) { l ->
             val tracker = ProgressTracker(l::onProgress)
             tracker.start(0, ids.size)
             for (id in ids) {
@@ -193,7 +195,7 @@ class OperationManager(
         }
 
     /** Empties the trash (queued job). */
-    fun emptyTrash(): Long = enqueue(JobKind.DELETE, "Vidage de la corbeille", emptyList(), null) { _ ->
+    fun emptyTrash(): Long = enqueue(JobKind.DELETE, Strings.get(R.string.ops_empty_trash), emptyList(), null) { _ ->
         trash.empty()
         Outcome()
     }
@@ -249,14 +251,14 @@ class OperationManager(
             val name = newName.trim()
             Names.validate(name)?.let { throw IllegalArgumentException(it) }
             val b = fs.backendFor(path)
-            val entry = b.stat(path) ?: throw IOException("« ${PathUtil.name(path)} » est introuvable")
+            val entry = b.stat(path) ?: throw IOException(Strings.get(R.string.trash_err_not_found, PathUtil.name(path)))
             val dest = PathUtil.join(PathUtil.parent(path), name)
             if (dest == path) return@runCatching path
             renameOne(path, dest)
             val parent = PathUtil.parent(path)
             fs.notifyChanged(parent)
             onPathMoved(path, dest, entry.isDirectory)
-            undo.record(UndoAction.Renamed(listOf(path to dest), "« ${entry.name} » renommé"))
+            undo.record(UndoAction.Renamed(listOf(path to dest), Strings.get(R.string.ops_undo_renamed_one, entry.name)))
             dest
         }
     }
@@ -277,7 +279,7 @@ class OperationManager(
     override suspend fun revert(action: UndoAction): Boolean = when (action) {
         is UndoAction.Moved -> {
             val back = action.pairs.map { (from, to) -> to to from }
-            val id = enqueue(JobKind.MOVE, "Annulation du déplacement", back.map { it.first }, null) { l ->
+            val id = enqueue(JobKind.MOVE, Strings.get(R.string.ops_undo_move), back.map { it.first }, null) { l ->
                 val r = engine.moveExact(back, l)
                 r.toOutcome(moved = r.transfers.moves())
             }
@@ -285,11 +287,11 @@ class OperationManager(
         }
         is UndoAction.Renamed -> batchRenameInternal(action.pairs.map { (old, new) -> new to old }, recordUndo = false).isSuccess
         is UndoAction.Trashed -> {
-            val id = enqueue(JobKind.RESTORE, "Annulation de la mise à la corbeille", emptyList(), null) { l -> restoreIds(action.trashIds, l) }
+            val id = enqueue(JobKind.RESTORE, Strings.get(R.string.ops_undo_trash), emptyList(), null) { l -> restoreIds(action.trashIds, l) }
             await(id)?.state == JobState.DONE
         }
         is UndoAction.Created -> {
-            val id = enqueue(JobKind.DELETE, "Annulation", action.paths, null) { l -> engine.delete(action.paths, l).toOutcome() }
+            val id = enqueue(JobKind.DELETE, Strings.get(R.string.ops_undo_generic), action.paths, null) { l -> engine.delete(action.paths, l).toOutcome() }
             await(id)?.state == JobState.DONE
         }
     }
@@ -477,10 +479,10 @@ class OperationManager(
                 val sourcesLower = pairs.map { it.first.lowercase() }.toSet()
                 val targetsLower = HashSet<String>()
                 for ((from, to) in pairs) {
-                    if (!targetsLower.add(to.lowercase())) throw IOException("Deux éléments recevraient le nom « ${PathUtil.name(to)} »")
+                    if (!targetsLower.add(to.lowercase())) throw IOException(Strings.get(R.string.ops_err_same_target, PathUtil.name(to)))
                     val b = fs.backendFor(to)
                     if (b.exists(to) && to.lowercase() !in sourcesLower && !to.equals(from, ignoreCase = true)) {
-                        throw IOException("« ${PathUtil.name(to)} » existe déjà")
+                        throw IOException(Strings.get(R.string.ops_err_exists, PathUtil.name(to)))
                     }
                 }
                 val dirs = pairs.filter { fs.backendFor(it.first).stat(it.first)?.isDirectory == true }.map { it.first }.toSet()
@@ -505,7 +507,7 @@ class OperationManager(
                 }
                 fs.notifyChanged(pairs.map { PathUtil.parent(it.first) })
                 pairs.forEach { (from, to) -> onPathMoved(from, to, from in dirs) }
-                if (recordUndo) undo.record(UndoAction.Renamed(pairs, "${Format2.items(pairs.size)} renommé${plural(pairs.size)}"))
+                if (recordUndo) undo.record(UndoAction.Renamed(pairs, Strings.plural(R.plurals.ops_undo_renamed, pairs.size)))
                 pairs.size
             }
         }
@@ -518,10 +520,10 @@ class OperationManager(
             val tmp = PathUtil.join(PathUtil.parent(from), ".fichio-case-${System.nanoTime() % 1_000_000}")
             if (b.rename(from, tmp) && b.rename(tmp, to)) return
             if (b.exists(tmp)) b.rename(tmp, from)
-            throw IOException("Impossible de renommer « ${PathUtil.name(from)} »")
+            throw IOException(Strings.get(R.string.ops_err_rename, PathUtil.name(from)))
         }
-        if (b.exists(to)) throw IOException("« ${PathUtil.name(to)} » existe déjà")
-        if (!b.rename(from, to)) throw IOException("Impossible de renommer « ${PathUtil.name(from)} »")
+        if (b.exists(to)) throw IOException(Strings.get(R.string.ops_err_exists, PathUtil.name(to)))
+        if (!b.rename(from, to)) throw IOException(Strings.get(R.string.ops_err_rename, PathUtil.name(from)))
     }
 
     private suspend fun create(parent: String, rawName: String, folder: Boolean): Result<String> = withContext(Dispatchers.IO) {
@@ -530,11 +532,11 @@ class OperationManager(
             Names.validate(name)?.let { throw IllegalArgumentException(it) }
             val b = fs.backendFor(parent)
             val path = PathUtil.join(parent, name)
-            if (b.exists(path)) throw IOException("« $name » existe déjà")
+            if (b.exists(path)) throw IOException(Strings.get(R.string.ops_err_exists, name))
             val ok = if (folder) b.mkdirs(path) else b.createFile(path)
-            if (!ok) throw IOException(if (folder) "Impossible de créer le dossier" else "Impossible de créer le fichier")
+            if (!ok) throw IOException(if (folder) Strings.get(R.string.ops_err_mkdir_folder) else Strings.get(R.string.ops_err_create_file))
             fs.notifyChanged(parent)
-            undo.record(UndoAction.Created(listOf(path), if (folder) "Dossier « $name » créé" else "Fichier « $name » créé"))
+            undo.record(UndoAction.Created(listOf(path), if (folder) Strings.get(R.string.ops_folder_created, name) else Strings.get(R.string.ops_file_created, name)))
             path
         }
     }
@@ -558,15 +560,15 @@ class OperationManager(
 
     private fun List<Transfer>.moves() = map { Moved(it.from, it.to, it.isDirectory) }
 
-    private fun titleFor(verb: String, paths: List<String>) =
-        if (paths.size == 1) "$verb de « ${PathUtil.name(paths[0])} »" else "$verb de ${Format2.items(paths.size)}"
+    private fun titleFor(@androidx.annotation.StringRes verb: Int, paths: List<String>) =
+        Strings.get(verb, if (paths.size == 1) Strings.get(R.string.common_quoted, PathUtil.name(paths[0])) else Format2.items(paths.size))
 
     private fun plural(n: Int) = if (n > 1) "s" else ""
 
     private fun userMessage(t: Throwable): String = when (t) {
         is com.karelisio.fichio.core.fs.ShizukuUnavailableException ->
-            "Android/data nécessite Shevery : lancez-le puis réessayez"
-        is SecurityException -> "Accès refusé"
+            Strings.get(R.string.ops_err_needs_shevery)
+        is SecurityException -> Strings.get(R.string.common_access_denied)
         else -> t.message ?: t.javaClass.simpleName
     }
 

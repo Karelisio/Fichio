@@ -2,6 +2,10 @@
 
 package com.karelisio.fichio.preview
 
+import androidx.compose.foundation.layout.heightIn
+import com.karelisio.fichio.core.util.Strings
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -146,8 +150,8 @@ internal fun TextViewer(
                 onFailure = {
                     EmptyState(
                         icon = Icons.Rounded.Search,
-                        title = if (it.message == "binary") "Fichier binaire" else "Lecture impossible",
-                        message = if (it.message == "binary") "« $name » ne semble pas être du texte." else it.message,
+                        title = if (it.message == "binary") stringResource(R.string.text_binary) else stringResource(R.string.preview_read_failed),
+                        message = if (it.message == "binary") stringResource(R.string.text_not_text, name) else it.message,
                         modifier = Modifier.align(Alignment.Center),
                     )
                 },
@@ -200,7 +204,7 @@ private fun TextBody(t: LoadedText, searchOpen: Boolean, onCloseSearch: () -> Un
             LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
             Surface(
                 color = cs.surfaceContainerHigh, shape = CircleShape,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).height(52.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).heightIn(min = 52.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 16.dp, end = 4.dp)) {
                     Icon(Icons.Rounded.Search, null, tint = cs.onSurfaceVariant)
@@ -215,7 +219,7 @@ private fun TextBody(t: LoadedText, searchOpen: Boolean, onCloseSearch: () -> Un
                         modifier = Modifier.weight(1f).focusRequester(focus),
                         decorator = { inner ->
                             Box {
-                                if (queryState.text.isEmpty()) Text("Rechercher dans le fichier", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
+                                if (queryState.text.isEmpty()) Text(stringResource(R.string.preview_search_in_file), color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
                                 inner()
                             }
                         },
@@ -230,19 +234,19 @@ private fun TextBody(t: LoadedText, searchOpen: Boolean, onCloseSearch: () -> Un
                         color = if (query.isNotEmpty() && matches.isEmpty()) cs.error else cs.onSurfaceVariant,
                     )
                     IconButton(enabled = matches.isNotEmpty(), onClick = { haptics.tick(); current = (current - 1 + matches.size) % matches.size }) {
-                        Icon(Icons.Rounded.KeyboardArrowUp, "Précédent")
+                        Icon(Icons.Rounded.KeyboardArrowUp, stringResource(R.string.audio_previous))
                     }
                     IconButton(enabled = matches.isNotEmpty(), onClick = { haptics.tick(); current = (current + 1) % matches.size }) {
-                        Icon(Icons.Rounded.KeyboardArrowDown, "Suivant")
+                        Icon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.audio_next))
                     }
-                    IconButton(onClick = onCloseSearch) { Icon(Icons.Rounded.Close, "Fermer la recherche") }
+                    IconButton(onClick = onCloseSearch) { Icon(Icons.Rounded.Close, stringResource(R.string.text_close_search)) }
                 }
             }
         }
         if (doc.truncated) {
             Surface(color = cs.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    "Fichier volumineux : seuls les ${Format.size(TextLoader.VIEW_LIMIT)} premiers sont affichés.",
+                    stringResource(R.string.text_truncated, Format.size(TextLoader.VIEW_LIMIT)),
                     style = MaterialTheme.typography.labelMedium,
                     color = cs.onSecondaryContainer,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -293,17 +297,17 @@ private fun TextBody(t: LoadedText, searchOpen: Boolean, onCloseSearch: () -> Un
     }
 }
 
-/** "Modifier" button state: editing needs a small file and a writable backend. */
+/** stringResource(R.string.text_edit) button state: editing needs a small file and a writable backend. */
 internal fun editBlockReason(size: Long, restricted: Boolean, backendAvailable: Boolean): String? = when {
-    size > TextLoader.EDIT_LIMIT -> "Fichier trop volumineux pour l'éditeur (> ${Format.size(TextLoader.EDIT_LIMIT)})"
-    restricted && !backendAvailable -> "Activez Shevery pour modifier les fichiers d'Android/data"
+    size > TextLoader.EDIT_LIMIT -> Strings.get(R.string.preview_too_big_editor, Format.size(TextLoader.EDIT_LIMIT))
+    restricted && !backendAvailable -> Strings.get(R.string.text_needs_shevery)
     else -> null
 }
 
 @Composable
 internal fun WrapToggle(wrap: Boolean, onToggle: () -> Unit) {
     IconToggleButton(checked = wrap, onCheckedChange = { onToggle() }) {
-        Icon(Icons.AutoMirrored.Rounded.WrapText, if (wrap) "Désactiver le retour à la ligne" else "Retour à la ligne",
+        Icon(Icons.AutoMirrored.Rounded.WrapText, if (wrap) stringResource(R.string.text_wrap_off) else stringResource(R.string.text_wrap_on),
             tint = if (wrap) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -313,6 +317,6 @@ internal fun EditButton(enabled: Boolean, onClick: () -> Unit) {
     FilledTonalButton(onClick = onClick, enabled = enabled, contentPadding = PaddingValues(horizontal = 14.dp)) {
         Icon(Icons.Rounded.Edit, null)
         Spacer(Modifier.width(6.dp))
-        Text("Modifier")
+        Text(stringResource(R.string.text_edit))
     }
 }

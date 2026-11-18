@@ -1,5 +1,10 @@
 package com.karelisio.fichio.ui.home
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -146,7 +151,7 @@ fun HomeScreen(nav: NavHostController) {
                     modifier = Modifier.cascadeIn(1),
                 )
             }
-            item(key = "catTitle") { SectionHeader("Catégories") }
+            item(key = "catTitle") { SectionHeader(stringResource(R.string.home_categories)) }
             item(key = "cats") {
                 CategoryGrid(state.categories, Modifier.cascadeIn(2)) { cat ->
                     if (cat == FileCategory.DOWNLOADS) browse(StoragePaths.downloads)
@@ -155,33 +160,33 @@ fun HomeScreen(nav: NavHostController) {
             }
             val smartShown = smart.filter { it.count > 0 }
             if (smartShown.isNotEmpty()) {
-                item(key = "smartTitle") { SectionHeader("Dossiers intelligents") }
+                item(key = "smartTitle") { SectionHeader(stringResource(R.string.home_smart_folders)) }
                 item(key = "smart") {
                     SmartFolderRow(smartShown, Modifier.cascadeIn(3)) { kind -> nav.navigate(Route.Smart(kind.name)) }
                 }
             }
             val usedTags = tags.filter { it.count > 0 }
             if (usedTags.isNotEmpty()) {
-                item(key = "tagTitle") { SectionHeader("Étiquettes") }
+                item(key = "tagTitle") { SectionHeader(stringResource(R.string.home_tags)) }
                 item(key = "tags") {
                     TagChips(usedTags, Modifier.cascadeIn(4)) { nav.navigate(Route.Tagged(it.id)) }
                 }
             }
             if (recents.isNotEmpty()) {
-                item(key = "recentTitle") { SectionHeader("Récents") }
+                item(key = "recentTitle") { SectionHeader(stringResource(R.string.home_recents)) }
                 item(key = "recents") { RecentCarousel(recents.take(16)) { nav.openEntry(context, it) } }
             }
             item(key = "favTitle") {
-                SectionHeader("Favoris") {
+                SectionHeader(stringResource(R.string.home_favorites)) {
                     if (favorites.size > 1) TextButton(onClick = { reorder = true }) {
-                        Icon(Icons.Rounded.SwapVert, null, Modifier.size(18.dp)); Spacer(Modifier.width(4.dp)); Text("Réorganiser")
+                        Icon(Icons.Rounded.SwapVert, null, Modifier.size(18.dp)); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.home_reorder))
                     }
                 }
             }
             if (favorites.isEmpty()) {
                 item(key = "favEmpty") {
                     Text(
-                        "Ajoutez un dossier aux favoris depuis son menu ⋮ pour le retrouver ici.",
+                        stringResource(R.string.home_favorites_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 20.dp),
@@ -193,7 +198,7 @@ fun HomeScreen(nav: NavHostController) {
                 }
             }
             if (pinned.isNotEmpty()) {
-                item(key = "pinTitle") { SectionHeader("Épinglés") }
+                item(key = "pinTitle") { SectionHeader(stringResource(R.string.home_pinned)) }
                 item(key = "pins") {
                     FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         pinned.forEach { p ->
@@ -202,7 +207,7 @@ fun HomeScreen(nav: NavHostController) {
                                     Icon(Icons.Rounded.PushPin, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                                     Spacer(Modifier.width(6.dp))
                                     Text(StoragePaths.name(p.path), style = MaterialTheme.typography.labelLarge)
-                                    IconButton(onClick = { vm.unpin(p.path) }, modifier = Modifier.size(32.dp)) { Icon(Icons.Rounded.Close, "Désépingler", Modifier.size(16.dp)) }
+                                    IconButton(onClick = { vm.unpin(p.path) }, modifier = Modifier.minimumInteractiveComponentSize()) { Icon(Icons.Rounded.Close, stringResource(R.string.home_unpin), Modifier.size(16.dp)) }
                                 }
                             }
                         }
@@ -211,7 +216,7 @@ fun HomeScreen(nav: NavHostController) {
             }
             item(key = "footer") {
                 Text(
-                    if (state.indexedFiles > 0) "${state.indexedFiles} fichiers indexés · 100 % local" else "Indexation en cours…",
+                    if (state.indexedFiles > 0) pluralStringResource(R.plurals.home_indexed_files, state.indexedFiles, state.indexedFiles) else stringResource(R.string.home_indexing),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline,
                     modifier = Modifier.fillMaxWidth().padding(24.dp),
@@ -230,8 +235,8 @@ fun HomeScreen(nav: NavHostController) {
 private fun HomeTop(onSearch: () -> Unit, onSettings: () -> Unit) {
     Column(Modifier.statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Fichio", style = MaterialTheme.typography.displaySmall, modifier = Modifier.weight(1f).padding(start = 4.dp))
-            IconButton(onClick = onSettings) { Icon(Icons.Rounded.Settings, "Réglages") }
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.displaySmall, modifier = Modifier.weight(1f).padding(start = 4.dp))
+            IconButton(onClick = onSettings) { Icon(Icons.Rounded.Settings, stringResource(R.string.settings_title)) }
         }
         Spacer(Modifier.height(8.dp))
         val interaction = remember { MutableInteractionSource() }
@@ -240,12 +245,12 @@ private fun HomeTop(onSearch: () -> Unit, onSettings: () -> Unit) {
             interactionSource = interaction,
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier.fillMaxWidth().height(56.dp).pressScale(interaction, 0.98f).sharedElementKey("searchbar", bounds = true),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).pressScale(interaction, 0.98f).sharedElementKey("searchbar", bounds = true),
         ) {
             Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.width(14.dp))
-                Text("Rechercher dans vos fichiers", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.home_search_hint), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -281,7 +286,7 @@ private fun GaugeCard(state: HomeState, modifier: Modifier, onClick: () -> Unit)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(12.dp).clip(CircleShape).background(MaterialTheme.colorScheme.outline))
                     Spacer(Modifier.width(5.dp))
-                    Text("Autres ${Format.size((used - catSum).coerceAtLeast(0))}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.home_others_size, Format.size((used - catSum).coerceAtLeast(0))), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -302,16 +307,16 @@ private fun QuickAccess(
     modifier: Modifier,
 ) {
     val items = buildList {
-        state.primary?.let { add(Quick("internal", "Stockage interne", "${Format.size(it.freeBytes)} libres", Icons.Rounded.PhoneAndroid, MaterialShapes.Cookie9Sided, { onOpen(it.path) }, it.usedFraction)) }
+        state.primary?.let { add(Quick("internal", stringResource(R.string.storage_internal), stringResource(R.string.home_free, Format.size(it.freeBytes)), Icons.Rounded.PhoneAndroid, MaterialShapes.Cookie9Sided, { onOpen(it.path) }, it.usedFraction)) }
         state.otherVolumes.forEach { v ->
-            add(Quick(v.path, v.label, "${Format.size(v.freeBytes)} libres", if (v.isUsb) Icons.Rounded.Usb else Icons.Rounded.FolderSpecial, MaterialShapes.Pill, { onOpen(v.path) }, v.usedFraction))
+            add(Quick(v.path, v.label, stringResource(R.string.home_free, Format.size(v.freeBytes)), if (v.isUsb) Icons.Rounded.Usb else Icons.Rounded.FolderSpecial, MaterialShapes.Pill, { onOpen(v.path) }, v.usedFraction))
         }
-        val lock = if (shizuku == ShizukuState.READY) null else "Via Shevery"
-        add(Quick("data", "Android/data", lock ?: "Données des applis", if (lock != null) Icons.Rounded.Lock else Icons.Rounded.Folder, MaterialShapes.Clover4Leaf, { onOpen(StoragePaths.androidData) }))
-        add(Quick("obb", "Android/obb", lock ?: "Données des jeux", if (lock != null) Icons.Rounded.Lock else Icons.Rounded.SportsEsports, MaterialShapes.Clover8Leaf, { onOpen(StoragePaths.androidObb) }))
-        add(Quick("trash", "Corbeille", if (trashCount > 0) Format.items(trashCount) else "Vide", Icons.Rounded.Delete, MaterialShapes.Ghostish, onTrash))
-        add(Quick("apps", "Applications", "Extraire des APK", Icons.Rounded.Apps, MaterialShapes.Sunny, onApps))
-        add(Quick("transfer", "Transfert Wi-Fi", "Vers un PC", Icons.Rounded.Wifi, MaterialShapes.Puffy, onTransfer))
+        val lock = if (shizuku == ShizukuState.READY) null else stringResource(R.string.home_via_shevery)
+        add(Quick("data", "Android/data", lock ?: stringResource(R.string.home_app_data), if (lock != null) Icons.Rounded.Lock else Icons.Rounded.Folder, MaterialShapes.Clover4Leaf, { onOpen(StoragePaths.androidData) }))
+        add(Quick("obb", "Android/obb", lock ?: stringResource(R.string.home_game_data), if (lock != null) Icons.Rounded.Lock else Icons.Rounded.SportsEsports, MaterialShapes.Clover8Leaf, { onOpen(StoragePaths.androidObb) }))
+        add(Quick("trash", stringResource(R.string.shortcut_trash), if (trashCount > 0) Format.items(trashCount) else stringResource(R.string.common_empty), Icons.Rounded.Delete, MaterialShapes.Ghostish, onTrash))
+        add(Quick("apps", stringResource(R.string.home_apps), stringResource(R.string.home_extract_apks), Icons.Rounded.Apps, MaterialShapes.Sunny, onApps))
+        add(Quick("transfer", stringResource(R.string.home_wifi_transfer), stringResource(R.string.home_to_pc), Icons.Rounded.Wifi, MaterialShapes.Puffy, onTransfer))
     }
     LazyRow(modifier.padding(top = 8.dp), contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         items(items, key = { it.key }) { q -> QuickCard(q) }
@@ -496,7 +501,7 @@ private fun FavoriteRow(f: FavoriteEntity, modifier: Modifier, onClick: () -> Un
     }
 }
 
-/** Drag the handles to reorder favourites; saved on "Terminé". */
+/** Drag the handles to reorder favourites; saved on stringResource(R.string.common_done). */
 @Composable
 private fun ReorderFavoritesSheet(favorites: List<FavoriteEntity>, onDismiss: () -> Unit, onDone: (List<String>) -> Unit, onRemove: (String) -> Unit) {
     val items = remember(favorites) { favorites.toMutableStateList() }
@@ -506,8 +511,8 @@ private fun ReorderFavoritesSheet(favorites: List<FavoriteEntity>, onDismiss: ()
     val rowHeightPx = with(androidx.compose.ui.platform.LocalDensity.current) { 64.dp.toPx() }
     ModalBottomSheet(onDismissRequest = { onDone(items.map { it.path }) }) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Réorganiser les favoris", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            TextButton(onClick = { onDone(items.map { it.path }) }) { Text("Terminé") }
+            Text(stringResource(R.string.home_reorder_favorites), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            TextButton(onClick = { onDone(items.map { it.path }) }) { Text(stringResource(R.string.common_done)) }
         }
         Column(Modifier.padding(bottom = 32.dp)) {
             items.forEachIndexed { i, f ->
@@ -517,13 +522,13 @@ private fun ReorderFavoritesSheet(favorites: List<FavoriteEntity>, onDismiss: ()
                     Modifier
                         .zIndex(if (dragging) 1f else 0f)
                         .graphicsLayer { translationY = if (dragging) dragOffset else 0f; scaleX = scale; scaleY = scale; shadowElevation = if (dragging) 12f else 0f }
-                        .fillMaxWidth().height(64.dp).padding(horizontal = 16.dp)
+                        .fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 16.dp)
                         .clip(RoundedCornerShape(20.dp))
                         .background(if (dragging) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Rounded.DragHandle, "Déplacer",
+                        Icons.Rounded.DragHandle, stringResource(R.string.common_move),
                         Modifier.padding(horizontal = 12.dp).pointerInput(Unit) {
                             detectDragGestures(
                                 onDragStart = { dragIndex = items.indexOf(f); dragOffset = 0f; haptics.longPress() },
@@ -542,7 +547,7 @@ private fun ReorderFavoritesSheet(favorites: List<FavoriteEntity>, onDismiss: ()
                         },
                     )
                     Text(f.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    IconButton(onClick = { items.remove(f); onRemove(f.path) }) { Icon(Icons.Rounded.Close, "Retirer") }
+                    IconButton(onClick = { items.remove(f); onRemove(f.path) }) { Icon(Icons.Rounded.Close, stringResource(R.string.common_remove)) }
                 }
                 Spacer(Modifier.height(4.dp))
             }

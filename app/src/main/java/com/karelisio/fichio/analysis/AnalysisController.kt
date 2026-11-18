@@ -1,5 +1,7 @@
 package com.karelisio.fichio.analysis
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.compose.runtime.Immutable
 import com.karelisio.fichio.AppContainer
 import com.karelisio.fichio.core.fs.StoragePaths
@@ -92,7 +94,7 @@ object AnalysisController {
                 throw e
             } catch (e: Throwable) {
                 ticker.cancel()
-                finish(ScanStatus.Failed(e.message ?: "Analyse impossible"))
+                finish(ScanStatus.Failed(e.message ?: Strings.get(R.string.analysis_err_failed)))
             }
         }
     }

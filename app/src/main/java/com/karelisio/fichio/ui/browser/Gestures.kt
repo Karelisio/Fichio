@@ -1,5 +1,10 @@
 package com.karelisio.fichio.ui.browser
 
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
@@ -117,6 +122,9 @@ object PinchMath {
 }
 
 /** Swipe actions of the list rows: left = trash, right = share (file) / favourite (folder). */
+/** Extra accessibility actions (e.g. swipe gestures) offered by the row that wraps a file item. */
+val LocalRowAccessibilityActions = compositionLocalOf { emptyList<CustomAccessibilityAction>() }
+
 class SwipeActions(
     val onDelete: (FileEntry) -> Unit,
     val onSecondary: (FileEntry) -> Unit,
@@ -189,7 +197,22 @@ fun SwipeableRow(
             ),
     ) {
         if (offset != 0f) SwipeBackground(offset, width.toFloat(), entry, favorite, armed, reduce)
-        Box(Modifier.offset { IntOffset(offset.roundToInt(), 0) }) { content() }
+        // Swiping is not reachable with TalkBack: the same actions are offered as custom actions on the row.
+        val trashLabel = stringResource(R.string.browser_swipe_trash)
+        val secondaryLabel = stringResource(
+            when {
+                !entry.isDirectory -> R.string.common_share
+                favorite -> R.string.browser_remove_favorite
+                else -> R.string.browser_add_favorite
+            },
+        )
+        val a11y = if (!enabled) emptyList() else listOf(
+            CustomAccessibilityAction(trashLabel) { actions.onDelete(entry); true },
+            CustomAccessibilityAction(secondaryLabel) { actions.onSecondary(entry); true },
+        )
+        Box(Modifier.offset { IntOffset(offset.roundToInt(), 0) }) {
+            CompositionLocalProvider(LocalRowAccessibilityActions provides a11y) { content() }
+        }
     }
 }
 
@@ -229,9 +252,9 @@ private fun androidx.compose.foundation.layout.BoxScope.SwipeBackground(
         else -> Icons.Rounded.Share
     }
     val label = when {
-        left -> "Mettre à la corbeille"
-        entry.isDirectory -> if (favorite) "Retirer des favoris" else "Ajouter aux favoris"
-        else -> "Partager"
+        left -> stringResource(R.string.browser_swipe_trash)
+        entry.isDirectory -> if (favorite) stringResource(R.string.browser_remove_favorite) else stringResource(R.string.browser_add_favorite)
+        else -> stringResource(R.string.common_share)
     }
     Box(
         Modifier

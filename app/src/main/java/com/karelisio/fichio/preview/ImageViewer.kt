@@ -2,6 +2,8 @@
 
 package com.karelisio.fichio.preview
 
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -212,12 +214,12 @@ internal fun ImageViewer(
         ) {
             val preferPolaro = polaro && settings.openImagesInPolaro && !single
             val actions: @Composable () -> Unit = {
-                ToolbarAction(Icons.Rounded.Share, "Partager") { scope.launch { shareFile(context, current.path) } }
-                ToolbarAction(Icons.AutoMirrored.Rounded.OpenInNew, "Ouvrir avec") { scope.launch { openWith(context, current.path) } }
-                if (polaro && !preferPolaro && !single) ToolbarAction(Icons.Rounded.AutoAwesome, "Ouvrir dans Polaro") { Opener.openInPolaro(context, current.path) }
-                ToolbarAction(Icons.Rounded.Info, "Infos") { info = current }
-                if (!single && onShowInFolder != null) ToolbarAction(Icons.Rounded.FolderOpen, "Afficher dans le dossier") { onShowInFolder(current.parentPath) }
-                if (!single) ToolbarAction(Icons.Rounded.Delete, "Supprimer") { haptics.longPress(); confirmTrash = current }
+                ToolbarAction(Icons.Rounded.Share, stringResource(R.string.common_share)) { scope.launch { shareFile(context, current.path) } }
+                ToolbarAction(Icons.AutoMirrored.Rounded.OpenInNew, stringResource(R.string.open_with)) { scope.launch { openWith(context, current.path) } }
+                if (polaro && !preferPolaro && !single) ToolbarAction(Icons.Rounded.AutoAwesome, stringResource(R.string.image_open_polaro)) { Opener.openInPolaro(context, current.path) }
+                ToolbarAction(Icons.Rounded.Info, stringResource(R.string.preview_info)) { info = current }
+                if (!single && onShowInFolder != null) ToolbarAction(Icons.Rounded.FolderOpen, stringResource(R.string.common_show_in_folder)) { onShowInFolder(current.parentPath) }
+                if (!single) ToolbarAction(Icons.Rounded.Delete, stringResource(R.string.common_delete)) { haptics.longPress(); confirmTrash = current }
                 extraActions?.invoke()
             }
             if (preferPolaro) {
@@ -227,7 +229,7 @@ internal fun ImageViewer(
                         FloatingToolbarDefaults.VibrantFloatingActionButton(onClick = {
                             haptics.click()
                             if (!Opener.openInPolaro(context, current.path)) scope.launch { openWith(context, current.path) }
-                        }) { Icon(Icons.Rounded.AutoAwesome, "Ouvrir dans Polaro") }
+                        }) { Icon(Icons.Rounded.AutoAwesome, stringResource(R.string.image_open_polaro)) }
                     },
                     colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
                 ) { actions() }
@@ -303,12 +305,12 @@ private fun ImagePage(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Rounded.BrokenImage, null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(64.dp))
                 Spacer(Modifier.size(12.dp))
-                Text("Aperçu indisponible pour ce format", color = Color.White)
+                Text(stringResource(R.string.image_unsupported), color = Color.White)
                 Spacer(Modifier.size(12.dp))
                 FilledTonalButton(onClick = onOpenWith) {
                     Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Ouvrir avec…")
+                    Text(stringResource(R.string.browser_open_with))
                 }
             }
         }

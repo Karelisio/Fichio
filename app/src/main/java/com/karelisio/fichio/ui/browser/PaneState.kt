@@ -1,5 +1,7 @@
 package com.karelisio.fichio.ui.browser
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.Immutable
@@ -189,9 +191,9 @@ class PaneState(
         for (e in sorted) if (e.isDirectory) folders++ else size += e.size
         Listing.Loaded(sorted, folders, sorted.size - folders, size, all.size - visible.size)
     } catch (e: ShizukuUnavailableException) {
-        Listing.Error(e.message ?: "Shevery inactif", restricted = true)
+        Listing.Error(e.message ?: Strings.get(R.string.shizuku_inactive), restricted = true)
     } catch (e: Exception) {
-        Listing.Error(e.message ?: "Impossible d'ouvrir ce dossier", restricted = StoragePaths.isRestricted(path))
+        Listing.Error(e.message ?: Strings.get(R.string.browser_open_folder_failed), restricted = StoragePaths.isRestricted(path))
     }
 
     private fun trimCaches() {

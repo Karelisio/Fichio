@@ -1,5 +1,8 @@
 package com.karelisio.fichio.analysis
 
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -352,7 +355,7 @@ private fun CentreLabel(node: DirNode, canGoUp: Boolean) {
     ) {
         AnimatedVisibility(canGoUp) {
             Icon(
-                Icons.Rounded.ArrowUpward, "Remonter",
+                Icons.Rounded.ArrowUpward, stringResource(R.string.analysis_up),
                 Modifier.size(18.dp).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape).padding(2.dp),
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
             )
@@ -378,7 +381,7 @@ private fun CentreLabel(node: DirNode, canGoUp: Boolean) {
             )
         }
         Text(
-            Format.count(node.fileCount, "fichier"),
+            pluralStringResource(R.plurals.common_files_count, node.fileCount, node.fileCount),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

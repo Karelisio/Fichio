@@ -1,5 +1,7 @@
 package com.karelisio.fichio.ops
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DriveFileMove
 import androidx.compose.material.icons.rounded.Archive
@@ -44,19 +46,19 @@ internal fun JobKind.polygon(): RoundedPolygon = when (this) {
 }
 
 internal fun JobState.label(): String = when (this) {
-    JobState.QUEUED -> "En attente"
-    JobState.RUNNING -> "En cours"
-    JobState.PAUSED -> "En pause"
-    JobState.WAITING_CONFLICT -> "Action requise"
-    JobState.DONE -> "Terminé"
-    JobState.FAILED -> "Échec"
-    JobState.CANCELLED -> "Annulé"
+    JobState.QUEUED -> Strings.get(R.string.ops_state_queued)
+    JobState.RUNNING -> Strings.get(R.string.ops_state_running)
+    JobState.PAUSED -> Strings.get(R.string.ops_state_paused)
+    JobState.WAITING_CONFLICT -> Strings.get(R.string.ops_state_conflict)
+    JobState.DONE -> Strings.get(R.string.ops_state_done)
+    JobState.FAILED -> Strings.get(R.string.ops_state_failed)
+    JobState.CANCELLED -> Strings.get(R.string.ops_state_cancelled)
 }
 
 /** "12,3 Mo sur 1,2 Go" or "4 sur 12". */
 internal fun JobProgress.amountText(): String = when {
-    totalBytes > 0 -> "${Format.size(doneBytes)} sur ${Format.size(totalBytes)}"
-    totalItems > 0 -> "$doneItems sur $totalItems"
+    totalBytes > 0 -> Strings.get(R.string.ops_progress_bytes, Format.size(doneBytes), Format.size(totalBytes))
+    totalItems > 0 -> Strings.get(R.string.ops_progress_items, doneItems, totalItems)
     else -> ""
 }
 
@@ -66,9 +68,9 @@ internal fun JobProgress.etaText(): String? {
     val sec = (totalBytes - doneBytes).coerceAtLeast(0) / speed
     return when {
         sec < 3 -> null
-        sec < 60 -> "≈ $sec s restantes"
-        sec < 3600 -> "≈ ${(sec + 30) / 60} min restantes"
-        else -> "≈ ${sec / 3600} h ${(sec % 3600) / 60} min restantes"
+        sec < 60 -> Strings.get(R.string.ops_eta_seconds, sec)
+        sec < 3600 -> Strings.get(R.string.ops_eta_minutes, (sec + 30) / 60)
+        else -> Strings.get(R.string.ops_eta_hours, sec / 3600, (sec % 3600) / 60)
     }
 }
 

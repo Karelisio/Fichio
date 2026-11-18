@@ -1,5 +1,8 @@
 package com.karelisio.fichio.shizuku
 
+import com.karelisio.fichio.core.util.Strings
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -171,10 +174,10 @@ fun ShizukuStatusPanel(modifier: Modifier = Modifier) {
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     when (state) {
-                        ShizukuState.NO_PERMISSION -> PrimaryAction("Autoriser", Icons.Rounded.Key) {
+                        ShizukuState.NO_PERMISSION -> PrimaryAction(stringResource(R.string.common_allow), Icons.Rounded.Key) {
                             haptics.click(); manager.requestPermission()
                         }
-                        ShizukuState.NOT_RUNNING -> PrimaryAction("Ouvrir Shevery", Icons.Rounded.OpenInNew) {
+                        ShizukuState.NOT_RUNNING -> PrimaryAction(stringResource(R.string.shizuku_open), Icons.Rounded.OpenInNew) {
                             haptics.click()
                             if (!manager.openManager(context)) haptics.reject()
                         }
@@ -186,7 +189,7 @@ fun ShizukuStatusPanel(modifier: Modifier = Modifier) {
                     ) {
                         Icon(Icons.Rounded.Refresh, null, Modifier.size(ButtonDefaults.IconSize))
                         Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                        Text("Réessayer")
+                        Text(stringResource(R.string.common_retry))
                     }
                 }
             }
@@ -218,23 +221,22 @@ private fun iconFor(s: ShizukuState): ImageVector = when (s) {
 }
 
 private fun titleFor(s: ShizukuState) = when (s) {
-    ShizukuState.NOT_INSTALLED -> "Shevery n'est pas installé"
-    ShizukuState.NOT_RUNNING -> "Shevery n'est pas démarré"
-    ShizukuState.NO_PERMISSION -> "Autorisation nécessaire"
-    ShizukuState.CONNECTING -> "Connexion à Shevery…"
-    ShizukuState.READY -> "Accès accordé"
+    ShizukuState.NOT_INSTALLED -> Strings.get(R.string.shizuku_not_installed)
+    ShizukuState.NOT_RUNNING -> Strings.get(R.string.shizuku_not_started)
+    ShizukuState.NO_PERMISSION -> Strings.get(R.string.shizuku_permission_needed)
+    ShizukuState.CONNECTING -> Strings.get(R.string.shizuku_connecting)
+    ShizukuState.READY -> Strings.get(R.string.shizuku_access_granted)
 }
 
 private fun messageFor(s: ShizukuState) = when (s) {
     ShizukuState.NOT_INSTALLED ->
-        "Android protège les dossiers Android/data et Android/obb. Fichio y accède grâce à Shevery " +
-            "(ou Shizuku) : installez-le, démarrez-le, puis touchez « Réessayer »."
+        Strings.get(R.string.shizuku_msg_not_installed)
     ShizukuState.NOT_RUNNING ->
-        "Ouvrez Shevery et démarrez son service (débogage sans fil ou root), puis revenez ici."
+        Strings.get(R.string.shizuku_msg_not_running)
     ShizukuState.NO_PERMISSION ->
-        "Shevery est actif. Autorisez Fichio à l'utiliser pour parcourir Android/data et Android/obb."
-    ShizukuState.CONNECTING -> "Démarrage du service de fichiers dans Shevery."
-    ShizukuState.READY -> "Android/data et Android/obb sont maintenant accessibles."
+        Strings.get(R.string.shizuku_msg_no_permission)
+    ShizukuState.CONNECTING -> Strings.get(R.string.shizuku_msg_connecting)
+    ShizukuState.READY -> Strings.get(R.string.shizuku_msg_ready)
 }
 
 /** Badge whose silhouette morphs (spring) between expressive shapes and slowly turns. */

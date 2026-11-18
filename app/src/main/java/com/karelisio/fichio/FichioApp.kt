@@ -68,6 +68,7 @@ class FichioApp : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        com.karelisio.fichio.core.util.Strings.init(this)
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { t, e ->
             runCatching { CrashLog.write(this, t.name, e, fatal = true) }

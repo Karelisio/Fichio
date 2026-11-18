@@ -2,6 +2,9 @@
 
 package com.karelisio.fichio.preview
 
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -89,7 +92,7 @@ object PreviewCache {
         val target = File(dir(context), "uri_${uri.toString().hashCode().toUInt()}_$safe")
         if (!target.exists() || target.length() == 0L) {
             val tmp = File(target.path + ".part")
-            val input = context.contentResolver.openInputStream(uri) ?: error("Flux indisponible")
+            val input = context.contentResolver.openInputStream(uri) ?: error(Strings.get(R.string.preview_stream_unavailable))
             input.use { i -> tmp.outputStream().use { i.copyTo(it, 256 * 1024) } }
             tmp.renameTo(target)
         }
@@ -159,11 +162,11 @@ data class InfoRow(val label: String, val value: String)
 /** Collects details for the "Infos" sheet (EXIF for images, media tags for audio/video). */
 suspend fun loadInfo(context: Context, entry: FileEntry, extra: List<InfoRow> = emptyList()): List<InfoRow> = withContext(Dispatchers.IO) {
     val rows = ArrayList<InfoRow>()
-    rows += InfoRow("Nom", entry.name)
-    rows += InfoRow("Emplacement", entry.parentPath)
-    if (!entry.isDirectory) rows += InfoRow("Taille", "${Format.size(entry.size)} (${String.format(Locale.FRANCE, "%,d", entry.size)} octets)")
-    rows += InfoRow("Modifié", Format.date(entry.lastModified))
-    rows += InfoRow("Type", entry.mimeType)
+    rows += InfoRow(Strings.get(R.string.common_name), entry.name)
+    rows += InfoRow(Strings.get(R.string.props_location), entry.parentPath)
+    if (!entry.isDirectory) rows += InfoRow(Strings.get(R.string.sort_size), Strings.get(R.string.info_size_bytes, Format.size(entry.size), String.format(Strings.locale, "%,d", entry.size)))
+    rows += InfoRow(Strings.get(R.string.props_modified), Format.date(entry.lastModified))
+    rows += InfoRow(Strings.get(R.string.sort_type), entry.mimeType)
     runCatching {
         when (entry.type) {
             FileType.IMAGE -> rows += imageInfo(context, entry)
@@ -182,7 +185,7 @@ private suspend fun imageInfo(context: Context, entry: FileEntry): List<InfoRow>
     BitmapFactory.decodeFile(file.path, opts)
     if (opts.outWidth > 0) {
         val mp = opts.outWidth.toLong() * opts.outHeight / 1_000_000.0
-        out += InfoRow("Dimensions", "${opts.outWidth} × ${opts.outHeight} px" + if (mp >= 0.1) String.format(Locale.FRANCE, " (%.1f Mpx)", mp) else "")
+        out += InfoRow(Strings.get(R.string.info_dimensions), "${opts.outWidth} × ${opts.outHeight} px" + if (mp >= 0.1) Strings.get(R.string.info_megapixels, Format.decimal(mp)) else "")
     }
     val ext = entry.extension
     if (ext in setOf("jpg", "jpeg", "png", "webp", "heic", "heif", "dng", "avif")) {
@@ -190,20 +193,20 @@ private suspend fun imageInfo(context: Context, entry: FileEntry): List<InfoRow>
         val make = exif.getAttribute(ExifInterface.TAG_MAKE)?.trim()
         val model = exif.getAttribute(ExifInterface.TAG_MODEL)?.trim()
         val camera = listOfNotNull(make, model?.removePrefix(make ?: "")?.trim()).filter { it.isNotEmpty() }.joinToString(" ")
-        if (camera.isNotEmpty()) out += InfoRow("Appareil", camera)
-        exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)?.let { out += InfoRow("Prise de vue", it.replaceFirst(':', '-').replaceFirst(':', '-')) }
-        exif.getAttribute(ExifInterface.TAG_F_NUMBER)?.toDoubleOrNull()?.let { out += InfoRow("Ouverture", String.format(Locale.FRANCE, "f/%.1f", it)) }
+        if (camera.isNotEmpty()) out += InfoRow(Strings.get(R.string.info_camera), camera)
+        exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)?.let { out += InfoRow(Strings.get(R.string.info_taken), it.replaceFirst(':', '-').replaceFirst(':', '-')) }
+        exif.getAttribute(ExifInterface.TAG_F_NUMBER)?.toDoubleOrNull()?.let { out += InfoRow(Strings.get(R.string.info_aperture), "f/" + Format.decimal(it)) }
         exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME)?.toDoubleOrNull()?.let {
-            out += InfoRow("Exposition", if (it < 1) "1/${(1 / it).toInt()} s" else String.format(Locale.FRANCE, "%.1f s", it))
+            out += InfoRow(Strings.get(R.string.info_exposure), if (it < 1) "1/${(1 / it).toInt()} s" else Format.decimal(it) + " s")
         }
         (exif.getAttribute(ExifInterface.TAG_ISO_SPEED_RATINGS))?.let { out += InfoRow("ISO", it) }
         exif.getAttribute(ExifInterface.TAG_FOCAL_LENGTH)?.let { raw ->
             val v = raw.split('/').let { p -> if (p.size == 2) p[0].toDoubleOrNull()?.div(p[1].toDoubleOrNull() ?: 1.0) else raw.toDoubleOrNull() }
-            if (v != null) out += InfoRow("Focale", String.format(Locale.FRANCE, "%.1f mm", v))
+            if (v != null) out += InfoRow(Strings.get(R.string.info_focal), Format.decimal(v) + " mm")
         }
         val latLong = FloatArray(2)
         @Suppress("DEPRECATION")
-        if (exif.getLatLong(latLong)) out += InfoRow("Position", String.format(Locale.US, "%.5f, %.5f", latLong[0], latLong[1]))
+        if (exif.getLatLong(latLong)) out += InfoRow(Strings.get(R.string.info_position), String.format(Locale.US, "%.5f, %.5f", latLong[0], latLong[1]))
     }
     return out
 }
@@ -215,16 +218,16 @@ private suspend fun mediaInfo(context: Context, entry: FileEntry): List<InfoRow>
     try {
         r.setDataSource(file.path)
         fun meta(k: Int) = r.extractMetadata(k)?.takeIf { it.isNotBlank() }
-        meta(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()?.let { out += InfoRow("Durée", Format.duration(it)) }
+        meta(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()?.let { out += InfoRow(Strings.get(R.string.info_duration), Format.duration(it)) }
         val w = meta(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
         val h = meta(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
-        if (w != null && h != null) out += InfoRow("Résolution", "$w × $h")
-        meta(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toLongOrNull()?.let { out += InfoRow("Débit", "${it / 1000} kb/s") }
-        meta(MediaMetadataRetriever.METADATA_KEY_TITLE)?.let { out += InfoRow("Titre", it) }
-        meta(MediaMetadataRetriever.METADATA_KEY_ARTIST)?.let { out += InfoRow("Artiste", it) }
-        meta(MediaMetadataRetriever.METADATA_KEY_ALBUM)?.let { out += InfoRow("Album", it) }
-        meta(MediaMetadataRetriever.METADATA_KEY_YEAR)?.let { out += InfoRow("Année", it) }
-        meta(MediaMetadataRetriever.METADATA_KEY_GENRE)?.let { out += InfoRow("Genre", it) }
+        if (w != null && h != null) out += InfoRow(Strings.get(R.string.info_resolution), "$w × $h")
+        meta(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toLongOrNull()?.let { out += InfoRow(Strings.get(R.string.info_bitrate), "${it / 1000} kb/s") }
+        meta(MediaMetadataRetriever.METADATA_KEY_TITLE)?.let { out += InfoRow(Strings.get(R.string.info_title), it) }
+        meta(MediaMetadataRetriever.METADATA_KEY_ARTIST)?.let { out += InfoRow(Strings.get(R.string.info_artist), it) }
+        meta(MediaMetadataRetriever.METADATA_KEY_ALBUM)?.let { out += InfoRow(Strings.get(R.string.info_album), it) }
+        meta(MediaMetadataRetriever.METADATA_KEY_YEAR)?.let { out += InfoRow(Strings.get(R.string.info_year), it) }
+        meta(MediaMetadataRetriever.METADATA_KEY_GENRE)?.let { out += InfoRow(Strings.get(R.string.info_genre), it) }
     } finally {
         runCatching { r.release() }
     }
@@ -245,7 +248,7 @@ fun InfoSheet(entry: FileEntry, extra: List<InfoRow> = emptyList(), onDismiss: (
             Row(verticalAlignment = Alignment.CenterVertically) {
                 FileIcon(entry.type, name = entry.name, size = 48.dp)
                 Spacer(Modifier.width(16.dp))
-                Text("Informations", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.info_information), style = MaterialTheme.typography.titleLarge)
             }
             Spacer(Modifier.height(16.dp))
             SelectionContainer {
@@ -269,10 +272,10 @@ fun TrashDialog(name: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Rounded.Delete, null) },
-        title = { Text("Placer dans la corbeille ?") },
-        text = { Text("« $name » pourra être restauré depuis la corbeille.") },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Supprimer") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+        title = { Text(stringResource(R.string.preview_trash_title)) },
+        text = { Text(stringResource(R.string.preview_trash_body, name)) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.common_delete)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 
@@ -280,7 +283,7 @@ fun TrashDialog(name: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
 fun trashFile(context: Context, path: String): Boolean = runCatching {
     context.container.operations.trash(listOf(path)); true
 }.getOrElse {
-    Toast.makeText(context, "Suppression impossible", Toast.LENGTH_SHORT).show(); false
+    Toast.makeText(context, Strings.get(R.string.preview_delete_failed), Toast.LENGTH_SHORT).show(); false
 }
 
 /** Shares [path]; files in Android/data are first copied to the cache so other apps can read them. */

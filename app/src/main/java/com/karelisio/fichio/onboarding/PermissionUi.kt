@@ -1,5 +1,8 @@
 package com.karelisio.fichio.onboarding
 
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -80,8 +83,10 @@ fun rememberPermissionRequester(onChanged: () -> Unit): (PermissionSpec) -> Unit
 @Composable
 fun PermissionStatusPill(granted: Boolean, modifier: Modifier = Modifier, optional: Boolean = false) {
     val cs = MaterialTheme.colorScheme
-    val ok = Color(0xFF2E9E5B)
-    val warn = Color(0xFFE08A1E)
+    // Text colours chosen for a contrast ≥ 4.5:1 on the tinted pill, in light and dark themes.
+    val dark = cs.surface.luminance() < 0.5f
+    val ok = if (dark) Color(0xFF7DD89B) else Color(0xFF1B6B3A)
+    val warn = if (dark) Color(0xFFFFB870) else Color(0xFF8A4B00)
     val bg by animateColorAsState(if (granted) ok.copy(alpha = 0.16f) else if (optional) cs.surfaceContainerHighest else warn.copy(alpha = 0.16f), label = "pillBg")
     val fg by animateColorAsState(if (granted) ok else if (optional) cs.onSurfaceVariant else warn, label = "pillFg")
     val dot by animateDpAsState(if (granted) 14.dp else 8.dp, bouncy(), label = "dot")
@@ -93,7 +98,7 @@ fun PermissionStatusPill(granted: Boolean, modifier: Modifier = Modifier, option
             }
             Spacer(Modifier.width(6.dp))
             Text(
-                if (granted) "Accordée" else if (optional) "Facultative" else "À corriger",
+                if (granted) stringResource(R.string.perm_granted) else if (optional) stringResource(R.string.perm_optional) else stringResource(R.string.perm_to_fix),
                 style = MaterialTheme.typography.labelMedium, color = fg,
             )
         }

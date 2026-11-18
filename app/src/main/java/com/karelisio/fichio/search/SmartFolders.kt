@@ -1,14 +1,20 @@
 package com.karelisio.fichio.search
 
+import androidx.annotation.StringRes
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import com.karelisio.fichio.core.model.FileType
 
 /** Virtual folders computed from the name index (home "Dossiers intelligents"). */
-enum class SmartFolder(val label: String, val description: String) {
-    SCREENSHOTS("Captures d'écran", "Dossiers Screenshots"),
-    WHATSAPP("WhatsApp", "Médias reçus"),
-    RECENT_DOWNLOADS("Téléchargements récents", "7 derniers jours"),
-    LARGE_VIDEOS("Grandes vidéos", "Plus de 100 Mo"),
-    CAMERA("Photos de l'appareil", "DCIM/Camera"),
+enum class SmartFolder(@StringRes val labelRes: Int, @StringRes val descriptionRes: Int) {
+    SCREENSHOTS(R.string.smart_screenshots, R.string.smart_screenshots_desc),
+    WHATSAPP(R.string.smart_whatsapp, R.string.smart_whatsapp_desc),
+    RECENT_DOWNLOADS(R.string.smart_recent_downloads, R.string.smart_recent_downloads_desc),
+    LARGE_VIDEOS(R.string.smart_large_videos, R.string.smart_large_videos_desc),
+    CAMERA(R.string.smart_camera, R.string.smart_camera_desc);
+
+    val label: String get() = Strings.get(labelRes)
+    val description: String get() = Strings.get(descriptionRes)
 }
 
 /**

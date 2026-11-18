@@ -15,13 +15,14 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(sdk = [35], application = Application::class, qualifiers = "fr")
 class TagsRepositoryTest {
     private lateinit var db: FichioDatabase
     private lateinit var repo: TagsRepository
 
     @Before
     fun setUp() {
+        com.karelisio.fichio.core.util.Strings.init(ApplicationProvider.getApplicationContext())
         db = FichioDatabase.inMemory(ApplicationProvider.getApplicationContext())
         repo = TagsRepository(db)
     }

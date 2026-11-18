@@ -1,5 +1,7 @@
 package com.karelisio.fichio.archive
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.compose.runtime.Immutable
 import com.karelisio.fichio.core.model.FileEntry
 import com.karelisio.fichio.core.model.FileType
@@ -142,26 +144,26 @@ data class ArchiveItem(
 open class ArchiveException(message: String, cause: Throwable? = null) : IOException(message, cause)
 
 /** The archive (or the requested entry) is encrypted and no password was given. */
-class PasswordRequiredException : ArchiveException("Cette archive est protégée par un mot de passe")
+class PasswordRequiredException : ArchiveException(Strings.get(R.string.archive_err_password_required))
 
 /** The given password does not decrypt the archive. */
-class WrongPasswordException(cause: Throwable? = null) : ArchiveException("Mot de passe incorrect", cause)
+class WrongPasswordException(cause: Throwable? = null) : ArchiveException(Strings.get(R.string.archive_err_wrong_password), cause)
 
 class UnsupportedArchiveException(message: String, cause: Throwable? = null) : ArchiveException(message, cause)
 
-class CorruptedArchiveException(message: String = "Archive endommagée ou illisible", cause: Throwable? = null) :
+class CorruptedArchiveException(message: String = Strings.get(R.string.archive_err_corrupted), cause: Throwable? = null) :
     ArchiveException(message, cause)
 
 /** An entry would be written outside the destination folder. */
-class ZipSlipException(val entry: String) : ArchiveException("Chemin dangereux refusé : $entry")
+class ZipSlipException(val entry: String) : ArchiveException(Strings.get(R.string.archive_err_zip_slip, entry))
 
 /** User-facing message for any error thrown by the archive module. */
 fun Throwable.archiveMessage(): String = when (this) {
-    is ArchiveException -> message ?: "Erreur d'archive"
-    is OutOfMemoryError -> "Mémoire insuffisante pour traiter cette archive"
-    is SecurityException -> "Accès refusé"
-    is java.io.FileNotFoundException -> "Fichier introuvable ou accès refusé"
-    else -> message?.takeIf { it.isNotBlank() } ?: "Erreur inattendue"
+    is ArchiveException -> message ?: Strings.get(R.string.archive_err_generic)
+    is OutOfMemoryError -> Strings.get(R.string.archive_err_oom)
+    is SecurityException -> Strings.get(R.string.common_access_denied)
+    is java.io.FileNotFoundException -> Strings.get(R.string.archive_err_file_not_found)
+    else -> message?.takeIf { it.isNotBlank() } ?: Strings.get(R.string.common_unexpected_error)
 }
 
 /* ---------- Path safety ---------- */

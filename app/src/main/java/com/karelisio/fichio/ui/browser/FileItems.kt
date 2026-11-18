@@ -1,5 +1,12 @@
 package com.karelisio.fichio.ui.browser
 
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -155,6 +162,10 @@ private fun Modifier.itemBehaviour(
     val reduce = LocalReduceMotion.current
     val selScale by animateFloatAsState(if (selected && !reduce) 0.97f else 1f, bouncy(), label = "selScale")
     val arrival = if (entry.isDirectory) FlyRegistry.arrivals[entry.path] else null
+    val openLabel = stringResource(R.string.common_open)
+    val selectLabel = stringResource(if (selected) R.string.a11y_deselect else R.string.common_select)
+    val stateLabel = stringResource(if (selected) R.string.a11y_selected else R.string.a11y_not_selected)
+    val extra = LocalRowAccessibilityActions.current
     return this
         .then(if (entry.isDirectory) Modifier.flyTarget("folder:${entry.path}") else Modifier)
         .flySource(entry)
@@ -164,9 +175,19 @@ private fun Modifier.itemBehaviour(
         .combinedClickable(
             interactionSource = interaction,
             indication = androidx.compose.material3.ripple(),
+            onClickLabel = openLabel,
             onClick = { actions.onClick(entry) },
+            onLongClickLabel = selectLabel,
             onLongClick = { actions.onLongClick(entry) },
         )
+        .semantics {
+            this.selected = selected
+            stateDescription = stateLabel
+            customActions = listOf(
+                CustomAccessibilityAction(openLabel) { actions.onClick(entry); true },
+                CustomAccessibilityAction(selectLabel) { actions.onLongClick(entry); true },
+            ) + extra
+        }
 }
 
 @Composable

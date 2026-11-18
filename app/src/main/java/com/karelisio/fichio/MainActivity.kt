@@ -1,5 +1,7 @@
 package com.karelisio.fichio
 
+import com.karelisio.fichio.core.util.Strings
+import androidx.compose.ui.res.stringResource
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.app.Activity
@@ -182,11 +184,11 @@ private fun CrashReportDialog() {
     fun dismiss() { com.karelisio.fichio.core.util.CrashLog.clear(context); report = null }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = ::dismiss,
-        title = { androidx.compose.material3.Text("Fichio a rencontré une erreur") },
+        title = { androidx.compose.material3.Text(stringResource(R.string.crash_title)) },
         text = {
             androidx.compose.foundation.layout.Column {
                 androidx.compose.material3.Text(
-                    "Le rapport reste sur l'appareil. Copie-le ou partage-le pour aider à corriger le problème.",
+                    stringResource(R.string.crash_body),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 androidx.compose.foundation.layout.Spacer(Modifier.fillMaxSize(0f))
@@ -209,17 +211,17 @@ private fun CrashReportDialog() {
         confirmButton = {
             androidx.compose.material3.TextButton(onClick = {
                 val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
-                context.startActivity(Intent.createChooser(send, "Partager le rapport").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                context.startActivity(Intent.createChooser(send, Strings.get(R.string.crash_share_report)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 dismiss()
-            }) { androidx.compose.material3.Text("Partager") }
+            }) { androidx.compose.material3.Text(stringResource(R.string.common_share)) }
         },
         dismissButton = {
             androidx.compose.foundation.layout.Row {
                 androidx.compose.material3.TextButton(onClick = {
                     val cm = context.getSystemService(android.content.ClipboardManager::class.java)
-                    cm?.setPrimaryClip(android.content.ClipData.newPlainText("Rapport Fichio", text))
-                }) { androidx.compose.material3.Text("Copier") }
-                androidx.compose.material3.TextButton(onClick = ::dismiss) { androidx.compose.material3.Text("Fermer") }
+                    cm?.setPrimaryClip(android.content.ClipData.newPlainText(Strings.get(R.string.crash_report_clip), text))
+                }) { androidx.compose.material3.Text(stringResource(R.string.common_copy)) }
+                androidx.compose.material3.TextButton(onClick = ::dismiss) { androidx.compose.material3.Text(stringResource(R.string.common_close)) }
             }
         },
     )

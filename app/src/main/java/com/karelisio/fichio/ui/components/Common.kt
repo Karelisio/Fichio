@@ -1,5 +1,9 @@
 package com.karelisio.fichio.ui.components
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.res.stringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
@@ -43,7 +47,7 @@ import androidx.compose.ui.unit.dp
 /** Back arrow used by every secondary screen. */
 @Composable
 fun BackButton(onBack: () -> Unit) {
-    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Retour") }
+    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.common_back)) }
 }
 
 /** Temporary screen used while a module is being built. */
@@ -81,7 +85,7 @@ fun EmptyState(
             }
         }
         Spacer(Modifier.height(20.dp))
-        Text(title, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+        Text(title, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
         if (message != null) {
             Spacer(Modifier.height(8.dp))
             Text(
@@ -110,7 +114,7 @@ fun SectionHeader(
             title,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).semantics { heading() },
         )
         trailing?.invoke()
     }

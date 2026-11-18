@@ -1,5 +1,7 @@
 package com.karelisio.fichio.shortcuts
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -55,7 +57,7 @@ object Shortcuts {
     private fun shortcutId(path: String) = "folder:" + path.hashCode().toUInt().toString(16)
 
     private fun build(context: Context, path: String, label: String, rank: Int = 0): ShortcutInfoCompat {
-        val name = label.ifBlank { path.substringAfterLast('/').ifEmpty { "Dossier" } }
+        val name = label.ifBlank { path.substringAfterLast('/').ifEmpty { Strings.get(R.string.common_folder) } }
         return ShortcutInfoCompat.Builder(context, shortcutId(path))
             .setShortLabel(name.take(24))
             .setLongLabel(name)

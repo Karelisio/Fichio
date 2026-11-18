@@ -2,6 +2,10 @@
 
 package com.karelisio.fichio.preview
 
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
@@ -121,7 +125,7 @@ fun PreviewScreen(path: String, onBack: () -> Unit, onEdit: (String) -> Unit, on
     val context = LocalContext.current
     val fs = context.container.fileSystems
     val entry by produceState<Result<FileEntry>?>(null, path) {
-        value = runCatching { fs.stat(path) ?: error("Fichier introuvable") }
+        value = runCatching { fs.stat(path) ?: error(Strings.get(R.string.apk_err_file_not_found)) }
     }
     LaunchedEffect(path) {
         context.container.recents.record(path)
@@ -135,7 +139,7 @@ fun PreviewScreen(path: String, onBack: () -> Unit, onEdit: (String) -> Unit, on
                 DocumentScaffold(title = StoragePaths.name(path), subtitle = null, onBack = onBack) {
                     EmptyState(
                         icon = Icons.Rounded.SearchOff,
-                        title = "Impossible d'ouvrir ce fichier",
+                        title = stringResource(R.string.preview_open_failed),
                         message = err.message,
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -190,15 +194,15 @@ private fun PdfFilePreview(entry: FileEntry, onBack: () -> Unit, onShowInFolder:
     var pages by remember { mutableStateOf(0) }
     DocumentScaffold(
         title = entry.name,
-        subtitle = listOfNotNull(Format.size(entry.size), pages.takeIf { it > 0 }?.let { Format.count(it, "page") }).joinToString(" · "),
+        subtitle = listOfNotNull(Format.size(entry.size), pages.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.pdf_pages_count, it, it) }).joinToString(" · "),
         onBack = onBack,
-        actions = { FileMenu(entry, onShowInFolder, onBack, extra = listOf(InfoRow("Pages", pages.toString()))) },
+        actions = { FileMenu(entry, onShowInFolder, onBack, extra = listOf(InfoRow(stringResource(R.string.preview_pages), pages.toString()))) },
     ) {
         when (val f = file) {
             null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
             else -> f.fold(
                 onSuccess = { PdfViewer(it, entry, onPageCount = { n -> pages = n }) },
-                onFailure = { EmptyState(Icons.Rounded.SearchOff, "Lecture impossible", Modifier.fillMaxSize(), it.message) },
+                onFailure = { EmptyState(Icons.Rounded.SearchOff, stringResource(R.string.preview_read_failed), Modifier.fillMaxSize(), it.message) },
             )
         }
     }
@@ -217,13 +221,13 @@ private fun TextFilePreview(entry: FileEntry, onBack: () -> Unit, onEdit: (Strin
     val lang = remember(entry.extension) { SyntaxHighlighter.languageFor(entry.extension).name }
     DocumentScaffold(
         title = entry.name,
-        subtitle = listOfNotNull(Format.size(entry.size), details.firstOrNull { it.label == "Lignes" }?.value?.let { "$it lignes" }, lang).joinToString(" · "),
+        subtitle = listOfNotNull(Format.size(entry.size), details.firstOrNull { it.label == Strings.get(R.string.preview_lines) }?.value?.let { v -> pluralStringResource(R.plurals.preview_lines_count, v.toIntOrNull() ?: 0, v) }, lang).joinToString(" · "),
         onBack = onBack,
         actions = {
-            IconButton(onClick = { search = !search }) { Icon(Icons.Rounded.Search, "Rechercher dans le fichier") }
+            IconButton(onClick = { search = !search }) { Icon(Icons.Rounded.Search, stringResource(R.string.preview_search_in_file)) }
             WrapToggle(wrap) { wrap = !wrap }
             EditButton(enabled = block == null) { onEdit(entry.path) }
-            FileMenu(entry, onShowInFolder, onBack, extra = details + listOfNotNull(block?.let { InfoRow("Édition", it) }))
+            FileMenu(entry, onShowInFolder, onBack, extra = details + listOfNotNull(block?.let { InfoRow(stringResource(R.string.preview_editing), it) }))
         },
     ) {
         TextViewer(
@@ -235,9 +239,9 @@ private fun TextFilePreview(entry: FileEntry, onBack: () -> Unit, onEdit: (Strin
             wrap = wrap,
             onInfo = { lines, truncated, cs ->
                 details = listOfNotNull(
-                    InfoRow("Lignes", lines.toString()),
-                    InfoRow("Encodage", cs),
-                    if (truncated) InfoRow("Affichage", "Tronqué à ${Format.size(TextLoader.VIEW_LIMIT)}") else null,
+                    InfoRow(Strings.get(R.string.preview_lines), lines.toString()),
+                    InfoRow(Strings.get(R.string.preview_encoding), cs),
+                    if (truncated) InfoRow(Strings.get(R.string.preview_display), Strings.get(R.string.preview_truncated_at, Format.size(TextLoader.VIEW_LIMIT))) else null,
                 )
             },
         )
@@ -286,20 +290,20 @@ private fun FileMenu(entry: FileEntry, onShowInFolder: ((String) -> Unit)?, onDe
     var info by remember { mutableStateOf(false) }
     var trash by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true }) { Icon(Icons.Rounded.MoreVert, "Plus d'options") }
+        IconButton(onClick = { open = true }) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.preview_more_options)) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(text = { Text("Partager") }, leadingIcon = { Icon(Icons.Rounded.Share, null) },
+            DropdownMenuItem(text = { Text(stringResource(R.string.common_share)) }, leadingIcon = { Icon(Icons.Rounded.Share, null) },
                 onClick = { open = false; scope.launch { shareFile(context, entry.path) } })
-            DropdownMenuItem(text = { Text("Ouvrir avec…") }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) },
+            DropdownMenuItem(text = { Text(stringResource(R.string.browser_open_with)) }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) },
                 onClick = { open = false; scope.launch { openWith(context, entry.path) } })
             if (onShowInFolder != null) {
-                DropdownMenuItem(text = { Text("Afficher dans le dossier") }, leadingIcon = { Icon(Icons.Rounded.FolderOpen, null) },
+                DropdownMenuItem(text = { Text(stringResource(R.string.common_show_in_folder)) }, leadingIcon = { Icon(Icons.Rounded.FolderOpen, null) },
                     onClick = { open = false; onShowInFolder(entry.parentPath) })
             }
-            DropdownMenuItem(text = { Text("Infos") }, leadingIcon = { Icon(Icons.Rounded.Info, null) },
+            DropdownMenuItem(text = { Text(stringResource(R.string.preview_info)) }, leadingIcon = { Icon(Icons.Rounded.Info, null) },
                 onClick = { open = false; info = true })
             HorizontalDivider()
-            DropdownMenuItem(text = { Text("Supprimer") }, leadingIcon = { Icon(Icons.Rounded.Delete, null) },
+            DropdownMenuItem(text = { Text(stringResource(R.string.common_delete)) }, leadingIcon = { Icon(Icons.Rounded.Delete, null) },
                 onClick = { open = false; haptics.longPress(); trash = true })
         }
     }
@@ -316,12 +320,12 @@ private fun Unsupported(entry: FileEntry, onOpenWith: (Context) -> Unit) {
     Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
         FileIcon(entry.type, name = entry.name, size = 112.dp)
         Spacer(Modifier.size(20.dp))
-        Text("Pas d'aperçu pour ce type de fichier", style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.preview_no_preview), style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.size(16.dp))
         Button(onClick = { onOpenWith(context) }) {
             Icon(Icons.AutoMirrored.Rounded.OpenInNew, null)
             Spacer(Modifier.width(8.dp))
-            Text("Ouvrir avec…")
+            Text(stringResource(R.string.browser_open_with))
         }
     }
 }
@@ -355,11 +359,11 @@ private fun UriPreview(uriString: String, mimeType: String?, onBack: () -> Unit)
                 val saved = runCatching { saveToDownloads(context, uri, name) }
                 Toast.makeText(
                     context,
-                    saved.fold({ "Enregistré dans Téléchargements (${StoragePaths.name(it)})" }, { "Enregistrement impossible : ${it.message}" }),
+                    saved.fold({ Strings.get(R.string.preview_saved_downloads_name, StoragePaths.name(it)) }, { Strings.get(R.string.preview_save_failed, it.message) }),
                     Toast.LENGTH_LONG,
                 ).show()
             }
-        }) { Icon(Icons.Rounded.Download, "Enregistrer dans Téléchargements") }
+        }) { Icon(Icons.Rounded.Download, stringResource(R.string.preview_save_to_downloads)) }
     }
 
     // Audio and PDF need a seekable local copy.
@@ -376,9 +380,9 @@ private fun UriPreview(uriString: String, mimeType: String?, onBack: () -> Unit)
         PreviewKind.TEXT -> {
             var search by rememberSaveable { mutableStateOf(false) }
             var wrap by rememberSaveable { mutableStateOf(true) }
-            val open: () -> InputStream = remember(uri) { { context.contentResolver.openInputStream(uri) ?: error("Flux indisponible") } }
+            val open: () -> InputStream = remember(uri) { { context.contentResolver.openInputStream(uri) ?: error(Strings.get(R.string.preview_stream_unavailable)) } }
             DocumentScaffold(name, Format.size(size).takeIf { size > 0 }, onBack, actions = {
-                IconButton(onClick = { search = !search }) { Icon(Icons.Rounded.Search, "Rechercher") }
+                IconButton(onClick = { search = !search }) { Icon(Icons.Rounded.Search, stringResource(R.string.shortcut_search)) }
                 WrapToggle(wrap) { wrap = !wrap }
                 saveAction()
             }) {
@@ -395,7 +399,7 @@ private fun UriPreview(uriString: String, mimeType: String?, onBack: () -> Unit)
                     }
                 },
                 onFailure = {
-                    DocumentScaffold(name, null, onBack) { EmptyState(Icons.Rounded.SearchOff, "Lecture impossible", Modifier.fillMaxSize(), it.message) }
+                    DocumentScaffold(name, null, onBack) { EmptyState(Icons.Rounded.SearchOff, stringResource(R.string.preview_read_failed), Modifier.fillMaxSize(), it.message) }
                 },
             )
         }
@@ -403,18 +407,18 @@ private fun UriPreview(uriString: String, mimeType: String?, onBack: () -> Unit)
             Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
                 FileIcon(FileTypes.typeOf(ext), name = name, size = 112.dp)
                 Spacer(Modifier.size(20.dp))
-                Text("Pas d'aperçu pour ce type de fichier", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.preview_no_preview), style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.size(16.dp))
                 FilledTonalButton(onClick = {
                     scope.launch {
                         runCatching { saveToDownloads(context, uri, name) }.onSuccess {
-                            Toast.makeText(context, "Enregistré dans Téléchargements", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, Strings.get(R.string.preview_saved_downloads), Toast.LENGTH_SHORT).show()
                         }
                     }
                 }) {
                     Icon(Icons.Rounded.Download, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Enregistrer dans Téléchargements")
+                    Text(stringResource(R.string.preview_save_to_downloads))
                 }
             }
         }
@@ -425,7 +429,7 @@ private fun UriPreview(uriString: String, mimeType: String?, onBack: () -> Unit)
 internal suspend fun saveToDownloads(context: Context, uri: Uri, name: String): String = withContext(Dispatchers.IO) {
     val dir = File(StoragePaths.downloads).apply { mkdirs() }
     val target = uniqueFile(dir, name.replace('/', '_').ifBlank { "fichier" })
-    val input = context.contentResolver.openInputStream(uri) ?: error("Flux indisponible")
+    val input = context.contentResolver.openInputStream(uri) ?: error(Strings.get(R.string.preview_stream_unavailable))
     input.use { i -> target.outputStream().use { i.copyTo(it, 256 * 1024) } }
     context.container.fileSystems.notifyChanged(dir.path)
     target.path
@@ -457,8 +461,8 @@ private fun TextEditor(path: String, onBack: () -> Unit) {
             runCatching {
                 val backend = fs.backendFor(path)
                 val (bytes, more) = TextLoader.readBounded(backend.openInput(path), TextLoader.EDIT_LIMIT)
-                if (more) error("Fichier trop volumineux pour l'éditeur (> ${Format.size(TextLoader.EDIT_LIMIT)})")
-                if (TextLoader.looksBinary(bytes)) error("Ce fichier n'est pas du texte")
+                if (more) error(Strings.get(R.string.preview_too_big_editor, Format.size(TextLoader.EDIT_LIMIT)))
+                if (TextLoader.looksBinary(bytes)) error(Strings.get(R.string.preview_not_text))
                 val (text, cs) = TextLoader.decode(bytes)
                 EditorDoc(text, cs)
             }
@@ -468,7 +472,7 @@ private fun TextEditor(path: String, onBack: () -> Unit) {
         null -> DocumentScaffold(StoragePaths.name(path), null, onBack) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() } }
         else -> l.fold(
             onSuccess = { EditorBody(path, it, onBack) },
-            onFailure = { DocumentScaffold(StoragePaths.name(path), null, onBack) { EmptyState(Icons.Rounded.SearchOff, "Édition impossible", Modifier.fillMaxSize(), it.message) } },
+            onFailure = { DocumentScaffold(StoragePaths.name(path), null, onBack) { EmptyState(Icons.Rounded.SearchOff, stringResource(R.string.preview_edit_failed), Modifier.fillMaxSize(), it.message) } },
         )
     }
 }
@@ -502,12 +506,12 @@ private fun EditorBody(path: String, doc: EditorDoc, onBack: () -> Unit) {
                 saved = text
                 fs.notifyChanged(StoragePaths.parent(path))
                 haptics.confirm()
-                snackbar.showSnackbar("Enregistré")
+                snackbar.showSnackbar(Strings.get(R.string.preview_saved))
                 true
             },
             onFailure = {
                 haptics.reject()
-                snackbar.showSnackbar("Échec de l'enregistrement : ${it.message}")
+                snackbar.showSnackbar(Strings.get(R.string.preview_save_error, it.message))
                 false
             },
         )
@@ -518,23 +522,23 @@ private fun EditorBody(path: String, doc: EditorDoc, onBack: () -> Unit) {
 
     DocumentScaffold(
         title = StoragePaths.name(path),
-        subtitle = if (modified) "Modifié" else "Enregistré · ${doc.charset.displayName()}",
+        subtitle = if (modified) stringResource(R.string.props_modified) else stringResource(R.string.preview_saved_charset, doc.charset.displayName()),
         onBack = back,
         snackbar = snackbar,
         actions = {
             IconButton(enabled = state.undoState.canUndo, onClick = { haptics.tick(); state.undoState.undo() }) {
-                Icon(Icons.AutoMirrored.Rounded.Undo, "Annuler")
+                Icon(Icons.AutoMirrored.Rounded.Undo, stringResource(R.string.common_cancel))
             }
             IconButton(enabled = state.undoState.canRedo, onClick = { haptics.tick(); state.undoState.redo() }) {
-                Icon(Icons.AutoMirrored.Rounded.Redo, "Rétablir")
+                Icon(Icons.AutoMirrored.Rounded.Redo, stringResource(R.string.preview_redo))
             }
             IconToggleButton(checked = mono, onCheckedChange = { mono = it }) {
-                Icon(Icons.Rounded.FontDownload, "Police à chasse fixe", tint = if (mono) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Rounded.FontDownload, stringResource(R.string.preview_monospace), tint = if (mono) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
             WrapToggle(wrap) { wrap = !wrap }
             AnimatedVisibility(modified, enter = scaleIn(bouncy()), exit = scaleOut()) {
                 IconButton(enabled = !saving, onClick = { scope.launch { save() } }) {
-                    if (saving) LoadingIndicator(Modifier.size(24.dp)) else Icon(Icons.Rounded.Save, "Enregistrer", tint = MaterialTheme.colorScheme.primary)
+                    if (saving) LoadingIndicator(Modifier.size(24.dp)) else Icon(Icons.Rounded.Save, stringResource(R.string.common_save), tint = MaterialTheme.colorScheme.primary)
                 }
             }
         },
@@ -560,18 +564,18 @@ private fun EditorBody(path: String, doc: EditorDoc, onBack: () -> Unit) {
     if (confirmExit) {
         AlertDialog(
             onDismissRequest = { confirmExit = false },
-            title = { Text("Modifications non enregistrées") },
-            text = { Text("Voulez-vous enregistrer vos modifications avant de quitter ?") },
+            title = { Text(stringResource(R.string.preview_unsaved_title)) },
+            text = { Text(stringResource(R.string.preview_unsaved_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmExit = false
                     scope.launch { if (save()) onBack() }
-                }) { Text("Enregistrer") }
+                }) { Text(stringResource(R.string.common_save)) }
             },
             dismissButton = {
                 Row {
-                    TextButton(onClick = { confirmExit = false; onBack() }) { Text("Quitter sans enregistrer") }
-                    TextButton(onClick = { confirmExit = false }) { Text("Annuler") }
+                    TextButton(onClick = { confirmExit = false; onBack() }) { Text(stringResource(R.string.preview_quit_without_saving)) }
+                    TextButton(onClick = { confirmExit = false }) { Text(stringResource(R.string.common_cancel)) }
                 }
             },
         )

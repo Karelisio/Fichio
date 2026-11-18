@@ -1,5 +1,7 @@
 package com.karelisio.fichio.archive
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import com.github.junrar.Archive
 import com.github.junrar.exception.CrcErrorException
 import com.github.junrar.exception.RarException
@@ -109,7 +111,7 @@ abstract class ArchiveReader(val file: File, val format: ArchiveFormat, protecte
 
     private suspend fun doExtract(request: ExtractRequest, cb: ExtractCallbacks): ExtractResult {
         val dest = request.destination
-        if (!dest.exists() && !dest.mkdirs()) throw ArchiveException("Impossible de créer le dossier de destination")
+        if (!dest.exists() && !dest.mkdirs()) throw ArchiveException(Strings.get(R.string.ops_err_create_dest))
         val selected = tree.select(request.selection)
         val filePaths = selected.filter { !it.isDirectory }.mapTo(HashSet()) { it.path }
         val totalBytes = selected.filter { !it.isDirectory }.sumOf { it.size.coerceAtLeast(0) }
@@ -193,9 +195,9 @@ object Archives {
      * [UnsupportedArchiveException] (unknown RAR version…) or [CorruptedArchiveException].
      */
     fun open(file: File, password: CharArray? = null): ArchiveReader {
-        if (!file.isFile) throw ArchiveException("Archive introuvable")
+        if (!file.isFile) throw ArchiveException(Strings.get(R.string.archive_err_not_found))
         val pw = password?.takeIf { it.isNotEmpty() }
-        val format = ArchiveFormat.detect(file) ?: throw UnsupportedArchiveException("Format d'archive non pris en charge")
+        val format = ArchiveFormat.detect(file) ?: throw UnsupportedArchiveException(Strings.get(R.string.archive_err_unsupported))
         val reader = when (format) {
             ArchiveFormat.ZIP -> ZipArchiveReader(file, pw)
             ArchiveFormat.SEVEN_Z -> SevenZArchiveReader(file, pw)
@@ -297,7 +299,7 @@ internal class SevenZArchiveReader(file: File, password: CharArray?) : ArchiveRe
         } catch (e: org.apache.commons.compress.PasswordRequiredException) {
             throw PasswordRequiredException()
         } catch (e: OutOfMemoryError) {
-            throw ArchiveException("Mémoire insuffisante pour ouvrir cette archive 7z")
+            throw ArchiveException(Strings.get(R.string.archive_err_7z_memory))
         } catch (e: IOException) {
             if (password != null) {
                 // Encrypted headers + wrong password look like corruption: tell them apart.
@@ -402,7 +404,7 @@ internal class RarArchiveReader(file: File, password: CharArray?) : ArchiveReade
             return Archive(file, pw)
         } catch (e: UnsupportedRarVersionException) {
             throw UnsupportedArchiveException(
-                "Cette version de RAR n'est pas prise en charge. Recompressez-la en ZIP ou 7z, ou utilisez une autre appli.", e,
+                Strings.get(R.string.archive_err_rar_version), e,
             )
         } catch (e: RarWrongPasswordException) {
             throw if (pw == null) PasswordRequiredException() else WrongPasswordException(e)

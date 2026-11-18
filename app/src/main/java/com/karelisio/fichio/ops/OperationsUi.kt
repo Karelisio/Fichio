@@ -1,5 +1,12 @@
 package com.karelisio.fichio.ops
 
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -163,31 +170,31 @@ private fun ConflictDialog(
                 }
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    "« ${request.existing.name} » existe déjà",
+                    stringResource(R.string.ops_conflict_exists, request.existing.name),
                     style = MaterialTheme.typography.headlineSmall,
                     maxLines = 3, overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "dans « ${request.existing.parentPath.substringAfterLast('/')} »",
+                    stringResource(R.string.ops_conflict_in, request.existing.parentPath.substringAfterLast('/')),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(20.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ConflictSide("Nouveau", request.source, request.existing, Modifier.weight(1f))
-                    ConflictSide("Existant", request.existing, request.source, Modifier.weight(1f))
+                    ConflictSide(stringResource(R.string.ops_conflict_new), request.source, request.existing, Modifier.weight(1f))
+                    ConflictSide(stringResource(R.string.ops_conflict_existing), request.existing, request.source, Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(16.dp))
                 Row(
                     Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
-                        .clickable { applyToAll = !applyToAll; haptics.tick() }
+                        .toggleable(applyToAll, role = Role.Checkbox) { applyToAll = it; haptics.tick() }
                         .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Checkbox(checked = applyToAll, onCheckedChange = { applyToAll = it; haptics.tick() })
+                    Checkbox(checked = applyToAll, onCheckedChange = null, modifier = Modifier.padding(12.dp))
                     Text(
-                        if (request.remainingHint > 0) "Appliquer à tous (jusqu'à ${request.remainingHint} autres)" else "Appliquer à tous",
+                        if (request.remainingHint > 0) stringResource(R.string.ops_apply_all_count, request.remainingHint) else stringResource(R.string.ops_apply_all),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
@@ -195,23 +202,23 @@ private fun ConflictDialog(
                 Button(
                     onClick = { answer(ConflictChoice.REPLACE) },
                     shapes = ButtonDefaults.shapes(),
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                ) { Text("Remplacer") }
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                ) { Text(stringResource(R.string.ops_replace)) }
                 Spacer(Modifier.height(8.dp))
                 FilledTonalButton(
                     onClick = { answer(ConflictChoice.KEEP_BOTH) },
                     shapes = ButtonDefaults.shapes(),
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                ) { Text("Garder les deux") }
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                ) { Text(stringResource(R.string.ops_keep_both)) }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { answer(ConflictChoice.SKIP) },
                     shapes = ButtonDefaults.shapes(),
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                ) { Text("Ignorer") }
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                ) { Text(stringResource(R.string.ops_skip)) }
                 Spacer(Modifier.height(4.dp))
                 TextButton(onClick = { haptics.click(); onCancelJob() }, shapes = ButtonDefaults.shapes()) {
-                    Text("Annuler l'opération", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.ops_cancel_operation), color = MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -229,7 +236,7 @@ private fun ConflictSide(label: String, entry: FileEntry, other: FileEntry, modi
             FileThumbnail(entry, size = 72.dp, shape = MaterialTheme.shapes.medium)
             Spacer(Modifier.height(8.dp))
             Text(
-                if (entry.isDirectory) "Dossier" else Format.size(entry.size),
+                if (entry.isDirectory) stringResource(R.string.common_folder) else Format.size(entry.size),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = if (bigger) FontWeight.Bold else FontWeight.Normal,
             )
@@ -242,7 +249,7 @@ private fun ConflictSide(label: String, entry: FileEntry, other: FileEntry, modi
             if (newer || bigger) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    listOfNotNull(if (newer) "Plus récent" else null, if (bigger) "Plus grand" else null).joinToString(" · "),
+                    listOfNotNull(if (newer) stringResource(R.string.ops_newer) else null, if (bigger) stringResource(R.string.ops_bigger) else null).joinToString(" · "),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                     modifier = Modifier.clip(CircleShape).background(MaterialTheme.colorScheme.tertiaryContainer)
@@ -310,9 +317,9 @@ fun OperationsIndicator(onClick: () -> Unit, modifier: Modifier = Modifier) {
                 Spacer(Modifier.width(8.dp))
                 AnimatedContent(
                     targetState = when {
-                        waiting -> "Action requise"
-                        paused -> "En pause"
-                        fraction == null -> "En cours"
+                        waiting -> stringResource(R.string.ops_state_conflict)
+                        paused -> stringResource(R.string.ops_state_paused)
+                        fraction == null -> stringResource(R.string.ops_state_running)
                         else -> "${(fraction * 100).toInt()} %"
                     },
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -351,12 +358,12 @@ fun OperationsSheet(onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Opérations", style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.ops_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
                 Text(
                     listOfNotNull(
-                        if (running > 0) "$running en cours" else null,
-                        if (finished > 0) "$finished terminée${if (finished > 1) "s" else ""}" else null,
-                    ).joinToString(" · ").ifEmpty { "File vide" },
+                        if (running > 0) stringResource(R.string.ops_running_count, running) else null,
+                        if (finished > 0) pluralStringResource(R.plurals.ops_finished_count, finished, finished) else null,
+                    ).joinToString(" · ").ifEmpty { stringResource(R.string.ops_queue_empty) },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -365,7 +372,7 @@ fun OperationsSheet(onDismiss: () -> Unit) {
                 TextButton(onClick = { haptics.click(); ops.clearFinished() }, shapes = ButtonDefaults.shapes()) {
                     Icon(Icons.Rounded.DoneAll, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Effacer les terminés")
+                    Text(stringResource(R.string.ops_clear_finished))
                 }
             }
         }
@@ -373,8 +380,8 @@ fun OperationsSheet(onDismiss: () -> Unit) {
         if (ordered.isEmpty()) {
             EmptyState(
                 icon = Icons.Rounded.DoneAll,
-                title = "Aucune opération",
-                message = "Les copies, déplacements et suppressions apparaîtront ici.",
+                title = stringResource(R.string.ops_none),
+                message = stringResource(R.string.ops_none_desc),
                 modifier = Modifier.navigationBarsPadding(),
             )
         } else {
@@ -431,15 +438,15 @@ private fun JobCard(job: Job, onPause: () -> Unit, onResume: () -> Unit, onCance
                 Column(Modifier.weight(1f)) {
                     Text(job.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     val sub = when {
-                        job.state == JobState.FAILED -> job.error ?: "Échec"
+                        job.state == JobState.FAILED -> job.error ?: stringResource(R.string.ops_state_failed)
                         job.state.isFinished -> buildString {
                             append(job.state.label())
-                            if (job.skipped > 0) append(" · ${job.skipped} ignoré${if (job.skipped > 1) "s" else ""}")
-                            if (job.failed > 0) append(" · ${job.failed} en échec")
+                            if (job.skipped > 0) append(" · " + pluralStringResource(R.plurals.ops_skipped_count, job.skipped, job.skipped))
+                            if (job.failed > 0) append(" · " + pluralStringResource(R.plurals.ops_failed_count, job.failed, job.failed))
                             job.error?.let { append(" · $it") }
                         }
                         job.state == JobState.RUNNING && job.progress.currentName.isNotEmpty() -> job.progress.currentName
-                        else -> job.state.label() + (job.destination?.let { " · vers « ${it.substringAfterLast('/')} »" } ?: "")
+                        else -> job.state.label() + (job.destination?.let { " · " + stringResource(R.string.ops_to_folder, it.substringAfterLast('/')) } ?: "")
                     }
                     Text(
                         sub, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
@@ -455,12 +462,12 @@ private fun JobCard(job: Job, onPause: () -> Unit, onResume: () -> Unit, onCance
                         ) {
                             Icon(
                                 if (job.state == JobState.PAUSED) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
-                                if (job.state == JobState.PAUSED) "Reprendre" else "Pause",
+                                if (job.state == JobState.PAUSED) stringResource(R.string.ops_resume) else stringResource(R.string.ops_pause),
                             )
                         }
                     }
                     IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
-                        Icon(Icons.Rounded.Close, "Annuler")
+                        Icon(Icons.Rounded.Close, stringResource(R.string.common_cancel))
                     }
                 }
             }

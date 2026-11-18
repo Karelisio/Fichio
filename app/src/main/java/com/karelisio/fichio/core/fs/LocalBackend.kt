@@ -1,5 +1,7 @@
 package com.karelisio.fichio.core.fs
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import com.karelisio.fichio.core.model.FileEntry
 import java.io.File
 import java.io.FileInputStream
@@ -19,7 +21,7 @@ open class LocalBackend : FileBackend {
 
     override fun list(path: String): List<FileEntry> {
         val dir = File(path)
-        val names = dir.list() ?: throw IOException("Impossible de lire $path")
+        val names = dir.list() ?: throw IOException(Strings.get(R.string.fs_err_read, path))
         val out = ArrayList<FileEntry>(names.size)
         val base = if (path.endsWith("/")) path else "$path/"
         for (name in names) {

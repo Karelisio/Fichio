@@ -1,5 +1,6 @@
 package com.karelisio.fichio.ops
 
+import com.karelisio.fichio.core.util.Strings
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
@@ -56,8 +57,8 @@ class FileOperationService : LifecycleService() {
             val nm = context.getSystemService(NotificationManager::class.java) ?: return
             if (nm.getNotificationChannel(CHANNEL_ID) != null) return
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Opérations sur les fichiers", NotificationManager.IMPORTANCE_LOW).apply {
-                    description = "Progression des copies, déplacements et suppressions"
+                NotificationChannel(CHANNEL_ID, Strings.get(R.string.channel_operations), NotificationManager.IMPORTANCE_LOW).apply {
+                    description = Strings.get(R.string.ops_channel_desc)
                     setShowBadge(false)
                 },
             )
@@ -186,7 +187,7 @@ class FileOperationService : LifecycleService() {
             .setRequestPromotedOngoing(true)
 
         if (job == null) {
-            return b.setContentTitle("Opérations sur les fichiers").setContentText("Préparation…")
+            return b.setContentTitle(Strings.get(R.string.channel_operations)).setContentText(Strings.get(R.string.ops_preparing))
                 .setStyle(NotificationCompat.ProgressStyle().setProgressIndeterminate(true))
                 .build()
         }
@@ -198,21 +199,21 @@ class FileOperationService : LifecycleService() {
         val pct = (p.fraction * 100).roundToInt().coerceIn(0, 100)
         val queued = active.size - live.size.coerceAtLeast(1)
         val title = when {
-            multi -> "${live.size} opérations en cours" + if (queued > 0) " (+$queued)" else ""
+            multi -> Strings.plural(R.plurals.ops_notif_running, live.size, live.size) + if (queued > 0) " (+$queued)" else ""
             active.size > 1 -> "${job.title} (+${active.size - 1})"
             else -> job.title
         }
         val allPaused = live.isNotEmpty() && live.all { it.state == JobState.PAUSED }
         val text = when {
-            live.any { it.state == JobState.WAITING_CONFLICT } -> "Un élément existe déjà : choisissez une action"
-            job.state == JobState.PAUSED && (!multi || allPaused) -> "En pause · $pct %"
-            job.state == JobState.QUEUED -> "En attente"
+            live.any { it.state == JobState.WAITING_CONFLICT } -> Strings.get(R.string.ops_notif_conflict)
+            job.state == JobState.PAUSED && (!multi || allPaused) -> Strings.get(R.string.ops_notif_paused, pct)
+            job.state == JobState.QUEUED -> Strings.get(R.string.ops_state_queued)
             else -> buildString {
-                if (p.totalBytes > 0) append("${Format.size(p.doneBytes)} sur ${Format.size(p.totalBytes)}")
-                else if (p.totalItems > 0) append("${p.doneItems} sur ${p.totalItems}")
+                if (p.totalBytes > 0) append(Strings.get(R.string.ops_progress_bytes, Format.size(p.doneBytes), Format.size(p.totalBytes)))
+                else if (p.totalItems > 0) append(Strings.get(R.string.ops_progress_items, p.doneItems, p.totalItems))
                 if (p.speed > 0) append(" · ${Format.size(p.speed)}/s")
                 remaining(p)?.let { append(" · $it") }
-            }.ifEmpty { "Préparation…" }
+            }.ifEmpty { Strings.get(R.string.ops_preparing) }
         }
         val sub = if (multi) live.joinToString(" · ") { it.progress.currentName.ifEmpty { it.title } }
         else p.currentName.takeIf { it.isNotEmpty() && job.state == JobState.RUNNING }
@@ -253,11 +254,11 @@ class FileOperationService : LifecycleService() {
         // With several running jobs, the actions apply to all of them (EXTRA_JOB = ALL).
         val target = if (multi) ALL else job.id
         if (allPaused || (!multi && job.state == JobState.PAUSED)) {
-            b.addAction(0, if (multi) "Tout reprendre" else "Reprendre", actionIntent(ACTION_RESUME, target))
+            b.addAction(0, if (multi) Strings.get(R.string.ops_resume_all) else Strings.get(R.string.ops_resume), actionIntent(ACTION_RESUME, target))
         } else if (multi || job.state == JobState.RUNNING) {
-            b.addAction(0, if (multi) "Tout suspendre" else "Pause", actionIntent(ACTION_PAUSE, target))
+            b.addAction(0, if (multi) Strings.get(R.string.ops_pause_all) else Strings.get(R.string.ops_pause), actionIntent(ACTION_PAUSE, target))
         }
-        b.addAction(0, if (multi) "Tout annuler" else "Annuler", actionIntent(ACTION_CANCEL, target))
+        b.addAction(0, if (multi) Strings.get(R.string.ops_cancel_all) else Strings.get(R.string.common_cancel), actionIntent(ACTION_CANCEL, target))
         return b.build()
     }
 
@@ -279,9 +280,9 @@ class FileOperationService : LifecycleService() {
         val sec = (p.totalBytes - p.doneBytes).coerceAtLeast(0) / p.speed
         return when {
             sec < 5 -> null
-            sec < 60 -> "$sec s restantes"
-            sec < 3600 -> "${sec / 60} min restantes"
-            else -> "${sec / 3600} h ${(sec % 3600) / 60} min restantes"
+            sec < 60 -> Strings.get(R.string.ops_left_seconds, sec)
+            sec < 3600 -> Strings.get(R.string.ops_left_minutes, sec / 60)
+            else -> Strings.get(R.string.ops_left_hours, sec / 3600, (sec % 3600) / 60)
         }
     }
 
@@ -295,10 +296,10 @@ class FileOperationService : LifecycleService() {
         if (visible && failures.isEmpty()) return
         val done = finished.count { it.state == JobState.DONE }
         val title = when {
-            failures.isNotEmpty() && finished.size == 1 -> "Échec : ${failures[0].title}"
-            failures.isNotEmpty() -> "${failures.size} opération${if (failures.size > 1) "s" else ""} en échec"
-            finished.size == 1 -> "${finished[0].title} : terminé"
-            else -> "$done opérations terminées"
+            failures.isNotEmpty() && finished.size == 1 -> Strings.get(R.string.ops_notif_failed_one, failures[0].title)
+            failures.isNotEmpty() -> Strings.plural(R.plurals.ops_notif_failed_many, failures.size, failures.size)
+            finished.size == 1 -> Strings.get(R.string.ops_notif_done_one, finished[0].title)
+            else -> Strings.plural(R.plurals.ops_notif_done_many, done, done)
         }
         val text = failures.firstOrNull()?.error ?: finished.lastOrNull()?.let { j ->
             if (j.progress.totalBytes > 0) Format.size(j.progress.totalBytes) else Format.items(j.progress.totalItems.coerceAtLeast(j.sources.size))

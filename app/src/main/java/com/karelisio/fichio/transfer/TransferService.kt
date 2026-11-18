@@ -1,5 +1,7 @@
 package com.karelisio.fichio.transfer
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -51,12 +53,12 @@ class TransferService : Service() {
         if (server != null) return START_NOT_STICKY
         val started = runCatching {
             ServiceCompat.startForeground(
-                this, NOTIFICATION_ID, notification("Démarrage du transfert…", null),
+                this, NOTIFICATION_ID, notification(Strings.get(R.string.transfer_starting_notif), null),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
             )
         }
         if (started.isFailure) {
-            TransferController.set(TransferState.Error("Le service de transfert n'a pas pu démarrer"))
+            TransferController.set(TransferState.Error(Strings.get(R.string.transfer_service_failed)))
             stopSelf()
             return START_NOT_STICKY
         }
@@ -72,7 +74,7 @@ class TransferService : Service() {
         val idleMs = (settings?.transferIdleMinutes ?: 10).coerceAtLeast(1) * 60_000L
         val ip = NetUtils.findWifiAddress(this)?.hostAddress
         if (ip == null) {
-            fail("Aucun réseau Wi-Fi : connectez-vous à un Wi-Fi ou activez le point d'accès.")
+            fail(Strings.get(R.string.transfer_no_wifi_err))
             return
         }
         val a = TransferAuth(onCodeChanged = { TransferController.onCode(it) })
@@ -103,7 +105,7 @@ class TransferService : Service() {
             }
         }
         if (srv == null) {
-            fail("Impossible d'ouvrir le serveur : ${lastError?.message ?: "port occupé"}")
+            fail(Strings.get(R.string.transfer_open_failed, lastError?.message ?: Strings.get(R.string.transfer_port_busy)))
             return
         }
         if (stopping) {
@@ -117,15 +119,15 @@ class TransferService : Service() {
         val code = a.newCode()
         TransferController.resetActivity()
         TransferController.set(TransferState.Active(url, ip, srv.port, code, 0, idleMs))
-        getSystemService<NotificationManager>()?.notify(NOTIFICATION_ID, notification("Transfert actif — $url", url))
+        getSystemService<NotificationManager>()?.notify(NOTIFICATION_ID, notification(Strings.get(R.string.transfer_active_url, url), url))
         registerNetwork(ip)
         watchdog = scope.launch {
             while (isActive) {
                 delay(5_000)
                 val idle = System.currentTimeMillis() - srv.lastRequest.get()
                 when {
-                    idle >= idleMs -> shutdown("Arrêt automatique après ${idleMs / 60_000} min d'inactivité")
-                    !NetUtils.isStillAssigned(ip) -> shutdown("Wi-Fi perdu : transfert arrêté")
+                    idle >= idleMs -> shutdown(Strings.get(R.string.transfer_auto_stop, idleMs / 60_000))
+                    !NetUtils.isStillAssigned(ip) -> shutdown(Strings.get(R.string.transfer_wifi_lost))
                     else -> TransferController.onSessions(a.sessionCount())
                 }
             }
@@ -138,7 +140,7 @@ class TransferService : Service() {
             override fun onLost(network: Network) {
                 scope.launch {
                     delay(1_500)
-                    if (!NetUtils.isStillAssigned(ip)) shutdown("Wi-Fi perdu : transfert arrêté")
+                    if (!NetUtils.isStillAssigned(ip)) shutdown(Strings.get(R.string.transfer_wifi_lost))
                 }
             }
         }
@@ -199,8 +201,8 @@ class TransferService : Service() {
         val nm = getSystemService<NotificationManager>()
         if (nm?.getNotificationChannel(CHANNEL) == null) {
             nm?.createNotificationChannel(
-                NotificationChannel(CHANNEL, "Transfert local", NotificationManager.IMPORTANCE_LOW).apply {
-                    description = "Serveur de transfert Wi-Fi actif"
+                NotificationChannel(CHANNEL, Strings.get(R.string.channel_transfer), NotificationManager.IMPORTANCE_LOW).apply {
+                    description = Strings.get(R.string.transfer_channel_desc)
                     setShowBadge(false)
                 },
             )
@@ -214,14 +216,14 @@ class TransferService : Service() {
         }
         return NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.stat_sys_upload)
-            .setContentTitle(if (url != null) "Transfert actif" else "Fichio")
+            .setContentTitle(if (url != null) Strings.get(R.string.transfer_active) else "Fichio")
             .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(if (url != null) "$text\nAndroid/data n'est pas partagé." else text))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(if (url != null) Strings.get(R.string.transfer_data_not_shared, text) else text))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(open)
-            .addAction(0, "Arrêter", stop)
+            .addAction(0, Strings.get(R.string.audio_stop), stop)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }

@@ -1,5 +1,11 @@
 package com.karelisio.fichio.trash
 
+import com.karelisio.fichio.ui.components.selectionSemantics
+import androidx.compose.foundation.layout.heightIn
+import com.karelisio.fichio.core.util.Strings
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.R
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -172,27 +178,27 @@ fun TrashScreen(onBack: () -> Unit) {
             MediumFlexibleTopAppBar(
                 title = {
                     AnimatedContent(selecting, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "title") { sel ->
-                        Text(if (sel) "${selected.size} sélectionné${if (selected.size > 1) "s" else ""}" else "Corbeille")
+                        Text(if (sel) pluralStringResource(R.plurals.common_selected_count, selected.size, selected.size) else stringResource(R.string.shortcut_trash))
                     }
                 },
                 subtitle = {
                     val n = items?.size ?: 0
-                    Text(if (n == 0) "Vide" else "${Format.items(n)} · ${Format.size(totalSize)}")
+                    Text(if (n == 0) stringResource(R.string.common_empty) else stringResource(R.string.trash_summary, Format.items(n), Format.size(totalSize)))
                 },
                 navigationIcon = {
-                    if (selecting) IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Rounded.Close, "Annuler la sélection") }
+                    if (selecting) IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Rounded.Close, stringResource(R.string.browser_cancel_selection)) }
                     else BackButton(onBack)
                 },
                 actions = {
                     if (selecting) {
                         IconButton(onClick = { haptics.tick(); selected = items.orEmpty().map { it.id }.toSet() }, shapes = IconButtonDefaults.shapes()) {
-                            Icon(Icons.Rounded.SelectAll, "Tout sélectionner")
+                            Icon(Icons.Rounded.SelectAll, stringResource(R.string.browser_select_all))
                         }
                     } else if (!items.isNullOrEmpty() && vortexItems == null) {
                         TextButton(onClick = { haptics.click(); confirmEmpty = true }, shapes = ButtonDefaults.shapes()) {
                             Icon(Icons.Rounded.DeleteSweep, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Vider")
+                            Text(stringResource(R.string.trash_empty_action))
                         }
                     }
                 },
@@ -212,15 +218,15 @@ fun TrashScreen(onBack: () -> Unit) {
                     ) {
                         FilledTonalButton(
                             onClick = { haptics.click(); confirmDelete = selected.toList() },
-                            shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f).height(52.dp),
+                            shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f).heightIn(min = 52.dp),
                         ) {
-                            Icon(Icons.Rounded.DeleteForever, null); Spacer(Modifier.width(8.dp)); Text("Supprimer")
+                            Icon(Icons.Rounded.DeleteForever, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.common_delete))
                         }
                         Button(
                             onClick = { restore(selected.toList()) },
-                            shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f).height(52.dp),
+                            shapes = ButtonDefaults.shapes(), modifier = Modifier.weight(1f).heightIn(min = 52.dp),
                         ) {
-                            Icon(Icons.Rounded.RestoreFromTrash, null); Spacer(Modifier.width(8.dp)); Text("Restaurer")
+                            Icon(Icons.Rounded.RestoreFromTrash, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.trash_restore))
                         }
                     }
                 }
@@ -235,10 +241,10 @@ fun TrashScreen(onBack: () -> Unit) {
                 shown == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(64.dp))
                 shown.isEmpty() -> EmptyState(
                     icon = Icons.Rounded.DeleteOutline,
-                    title = "La corbeille est vide",
+                    title = stringResource(R.string.trash_empty_title),
                     message = if (settings.trashEnabled)
-                        "Les éléments supprimés y restent ${settings.trashRetentionDays} jours avant d'être effacés définitivement."
-                    else "La corbeille est désactivée : les suppressions sont définitives.",
+                        pluralStringResource(R.plurals.trash_retention_body, settings.trashRetentionDays, settings.trashRetentionDays)
+                    else stringResource(R.string.trash_disabled_body),
                     modifier = Modifier.align(Alignment.Center),
                 )
                 else -> {
@@ -301,8 +307,8 @@ fun TrashScreen(onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { confirmEmpty = false },
             icon = { Icon(Icons.Rounded.DeleteSweep, null) },
-            title = { Text("Vider la corbeille ?") },
-            text = { Text("${Format.items(n)} (${Format.size(totalSize)}) seront supprimés définitivement. Cette action est irréversible.") },
+            title = { Text(stringResource(R.string.trash_empty_confirm_title)) },
+            text = { Text(stringResource(R.string.trash_empty_confirm_body, Format.items(n), Format.size(totalSize))) },
             confirmButton = {
                 Button(
                     onClick = { confirmEmpty = false; startVortex() },
@@ -310,9 +316,9 @@ fun TrashScreen(onBack: () -> Unit) {
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError,
                     ),
-                ) { Text("Vider") }
+                ) { Text(stringResource(R.string.trash_empty_action)) }
             },
-            dismissButton = { TextButton(onClick = { confirmEmpty = false }) { Text("Annuler") } },
+            dismissButton = { TextButton(onClick = { confirmEmpty = false }) { Text(stringResource(R.string.common_cancel)) } },
         )
     }
 
@@ -320,8 +326,8 @@ fun TrashScreen(onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { confirmDelete = null },
             icon = { Icon(Icons.Rounded.DeleteForever, null) },
-            title = { Text("Supprimer définitivement ?") },
-            text = { Text("${Format.items(ids.size)} ${if (ids.size > 1) "seront effacés" else "sera effacé"} sans possibilité de récupération.") },
+            title = { Text(stringResource(R.string.trash_delete_confirm_title)) },
+            text = { Text(pluralStringResource(R.plurals.trash_delete_confirm_body, ids.size, ids.size)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -334,9 +340,9 @@ fun TrashScreen(onBack: () -> Unit) {
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError,
                     ),
-                ) { Text("Supprimer") }
+                ) { Text(stringResource(R.string.common_delete)) }
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Annuler") } },
+            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(stringResource(R.string.common_cancel)) } },
         )
     }
 }
@@ -368,7 +374,7 @@ private fun DisabledBanner() {
             Icon(Icons.Rounded.Info, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
             Spacer(Modifier.width(12.dp))
             Text(
-                "La corbeille est désactivée : les nouvelles suppressions sont définitives.",
+                stringResource(R.string.trash_disabled_new_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
@@ -380,8 +386,8 @@ private fun originLabel(originalPath: String): String {
     val parent = StoragePaths.parent(originalPath)
     val primary = runCatching { StoragePaths.primary }.getOrDefault("")
     return when {
-        primary.isNotEmpty() && parent == primary -> "Stockage interne"
-        primary.isNotEmpty() && parent.startsWith("$primary/") -> "Stockage interne/" + parent.removePrefix("$primary/")
+        primary.isNotEmpty() && parent == primary -> Strings.get(R.string.storage_internal)
+        primary.isNotEmpty() && parent.startsWith("$primary/") -> Strings.get(R.string.storage_internal) + "/" + parent.removePrefix("$primary/")
         else -> parent
     }
 }
@@ -414,6 +420,7 @@ private fun TrashRow(
                     onClick = { if (selecting) onToggle() else menu = true },
                     onLongClick = onToggle,
                 )
+                .selectionSemantics(selected, onToggle)
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -430,7 +437,7 @@ private fun TrashRow(
             Column(Modifier.weight(1f)) {
                 Text(item.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.MiddleEllipsis)
                 Text(
-                    "Supprimé ${Format.relative(item.deletedAt)} · ${if (item.isDirectory) "Dossier, " else ""}${Format.size(item.size)}",
+                    stringResource(R.string.trash_item_deleted, Format.relative(item.deletedAt), if (item.isDirectory) stringResource(R.string.trash_item_folder_prefix) else "", Format.size(item.size)),
                     style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 1,
                 )
                 Text(
@@ -442,7 +449,7 @@ private fun TrashRow(
             Spacer(Modifier.width(8.dp))
             val urgent = daysLeft <= 3
             Text(
-                if (daysLeft == 0) "Aujourd'hui" else "$daysLeft j",
+                if (daysLeft == 0) stringResource(R.string.trash_today) else stringResource(R.string.trash_days_left, daysLeft),
                 style = MaterialTheme.typography.labelMedium,
                 color = if (urgent) scheme.onErrorContainer else scheme.onSurfaceVariant,
                 modifier = Modifier.clip(CircleShape)
@@ -452,17 +459,17 @@ private fun TrashRow(
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(
-                text = { Text("Restaurer") },
+                text = { Text(stringResource(R.string.trash_restore)) },
                 leadingIcon = { Icon(Icons.Rounded.RestoreFromTrash, null) },
                 onClick = { menu = false; onRestore() },
             )
             DropdownMenuItem(
-                text = { Text("Supprimer définitivement") },
+                text = { Text(stringResource(R.string.browser_delete_permanently)) },
                 leadingIcon = { Icon(Icons.Rounded.DeleteForever, null) },
                 onClick = { menu = false; onDelete() },
             )
             DropdownMenuItem(
-                text = { Text("Sélectionner") },
+                text = { Text(stringResource(R.string.common_select)) },
                 leadingIcon = { Icon(Icons.Rounded.SelectAll, null) },
                 onClick = { menu = false; onToggle() },
             )

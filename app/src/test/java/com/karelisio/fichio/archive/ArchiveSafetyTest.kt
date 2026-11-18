@@ -90,8 +90,8 @@ class ArchiveSafetyTest {
     }
 
     @Test fun levelLabelsAndSuggestedName() {
-        assertEquals("Stockage", ArchiveWriter.levelLabel(0))
-        assertEquals("Ultra", ArchiveWriter.levelLabel(9))
+        assertEquals(com.karelisio.fichio.core.util.Strings.get(com.karelisio.fichio.R.string.archive_level_store), ArchiveWriter.levelLabel(0))
+        assertEquals(com.karelisio.fichio.core.util.Strings.get(com.karelisio.fichio.R.string.archive_level_ultra), ArchiveWriter.levelLabel(9))
         val dir = tmp.newFolder("Vacances")
         val a = File(dir, "a.jpg").apply { writeText("a") }
         val b = File(dir, "b.jpg").apply { writeText("b") }

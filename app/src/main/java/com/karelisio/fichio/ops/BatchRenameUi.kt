@@ -1,5 +1,11 @@
 package com.karelisio.fichio.ops
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
@@ -96,7 +102,7 @@ fun BatchRenameSheet(entries: List<FileEntry>, onDismiss: () -> Unit) {
             ops.batchRename(preview.renames())
                 .onSuccess { n ->
                     haptics.confirm()
-                    ops.message("${com.karelisio.fichio.core.util.Format.items(n)} renommé${if (n > 1) "s" else ""}")
+                    ops.message(Strings.plural(R.plurals.ops_undo_renamed, n))
                     onDismiss()
                 }
                 .onFailure { haptics.reject(); applyError = it.message }
@@ -113,10 +119,10 @@ fun BatchRenameSheet(entries: List<FileEntry>, onDismiss: () -> Unit) {
             item(key = "header") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Renommer en lot", style = MaterialTheme.typography.headlineSmall)
+                        Text(stringResource(R.string.browser_batch_rename), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
                         Text(
-                            "${entries.size} éléments · ${preview.changed} modifié${if (preview.changed > 1) "s" else ""}" +
-                                if (preview.problems > 0) " · ${preview.problems} problème${if (preview.problems > 1) "s" else ""}" else "",
+                            pluralStringResource(R.plurals.format_items, entries.size, entries.size) + " · " + pluralStringResource(R.plurals.rename_changed_count, preview.changed, preview.changed) +
+                                if (preview.problems > 0) " · " + pluralStringResource(R.plurals.rename_problem_count, preview.problems, preview.problems) else "",
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (preview.problems > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -126,7 +132,7 @@ fun BatchRenameSheet(entries: List<FileEntry>, onDismiss: () -> Unit) {
                             LoadingIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
                             Spacer(Modifier.width(8.dp))
                         }
-                        Text("Valider")
+                        Text(stringResource(R.string.rename_apply))
                     }
                 }
                 applyError?.let {
@@ -136,33 +142,33 @@ fun BatchRenameSheet(entries: List<FileEntry>, onDismiss: () -> Unit) {
             }
 
             item(key = "affix") {
-                RuleCard("Préfixe et suffixe") {
+                RuleCard(stringResource(R.string.rename_prefix_suffix)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(
                             rules.prefix, { rules = rules.copy(prefix = it) }, Modifier.weight(1f),
-                            label = { Text("Préfixe") }, singleLine = true, shape = MaterialTheme.shapes.medium,
+                            label = { Text(stringResource(R.string.rename_prefix)) }, singleLine = true, shape = MaterialTheme.shapes.medium,
                         )
                         OutlinedTextField(
                             rules.suffix, { rules = rules.copy(suffix = it) }, Modifier.weight(1f),
-                            label = { Text("Suffixe") }, singleLine = true, shape = MaterialTheme.shapes.medium,
+                            label = { Text(stringResource(R.string.rename_suffix)) }, singleLine = true, shape = MaterialTheme.shapes.medium,
                         )
                     }
                 }
             }
 
             item(key = "numbering") {
-                RuleCard("Numérotation", checked = rules.numbering, onChecked = { rules = rules.copy(numbering = it); haptics.tick() }) {
+                RuleCard(stringResource(R.string.rename_numbering), checked = rules.numbering, onChecked = { rules = rules.copy(numbering = it); haptics.tick() }) {
                     AnimatedVisibility(rules.numbering, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                NumberField("Début", rules.numberStart, Modifier.weight(1f)) { rules = rules.copy(numberStart = it) }
-                                NumberField("Pas", rules.numberStep, Modifier.weight(1f)) { rules = rules.copy(numberStep = it) }
-                                NumberField("Chiffres", rules.numberDigits, Modifier.weight(1f), min = 1, max = 9) {
+                                NumberField(stringResource(R.string.rename_start), rules.numberStart, Modifier.weight(1f)) { rules = rules.copy(numberStart = it) }
+                                NumberField(stringResource(R.string.rename_step), rules.numberStep, Modifier.weight(1f)) { rules = rules.copy(numberStep = it) }
+                                NumberField(stringResource(R.string.rename_digits), rules.numberDigits, Modifier.weight(1f), min = 1, max = 9) {
                                     rules = rules.copy(numberDigits = it)
                                 }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                listOf(NumberPosition.START to "Début", NumberPosition.END to "Fin", NumberPosition.REPLACE to "Remplacer le nom")
+                                listOf(NumberPosition.START to stringResource(R.string.rename_start), NumberPosition.END to stringResource(R.string.rename_end), NumberPosition.REPLACE to stringResource(R.string.rename_replace_name))
                                     .forEach { (pos, label) ->
                                         ToggleButton(
                                             checked = rules.numberPosition == pos,
@@ -174,7 +180,7 @@ fun BatchRenameSheet(entries: List<FileEntry>, onDismiss: () -> Unit) {
                             AnimatedVisibility(rules.numberPosition != NumberPosition.REPLACE) {
                                 OutlinedTextField(
                                     rules.numberSeparator, { rules = rules.copy(numberSeparator = it) }, Modifier.fillMaxWidth(),
-                                    label = { Text("Séparateur") }, singleLine = true, shape = MaterialTheme.shapes.medium,
+                                    label = { Text(stringResource(R.string.rename_separator)) }, singleLine = true, shape = MaterialTheme.shapes.medium,
                                 )
                             }
                         }
@@ -183,33 +189,33 @@ fun BatchRenameSheet(entries: List<FileEntry>, onDismiss: () -> Unit) {
             }
 
             item(key = "find") {
-                RuleCard("Rechercher et remplacer") {
+                RuleCard(stringResource(R.string.rename_find_replace)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(
                             rules.find, { rules = rules.copy(find = it) }, Modifier.weight(1f),
-                            label = { Text("Rechercher") }, singleLine = true, shape = MaterialTheme.shapes.medium,
+                            label = { Text(stringResource(R.string.shortcut_search)) }, singleLine = true, shape = MaterialTheme.shapes.medium,
                             isError = preview.patternError != null,
                             supportingText = preview.patternError?.let { e -> { Text(e) } },
                         )
                         OutlinedTextField(
                             rules.replace, { rules = rules.copy(replace = it) }, Modifier.weight(1f),
-                            label = { Text("Remplacer par") }, singleLine = true, shape = MaterialTheme.shapes.medium,
+                            label = { Text(stringResource(R.string.rename_replace_with)) }, singleLine = true, shape = MaterialTheme.shapes.medium,
                         )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(rules.regex, { rules = rules.copy(regex = !rules.regex); haptics.tick() }, label = { Text("Expression régulière") })
+                        FilterChip(rules.regex, { rules = rules.copy(regex = !rules.regex); haptics.tick() }, label = { Text(stringResource(R.string.rename_regex)) })
                         FilterChip(
                             rules.caseSensitive, { rules = rules.copy(caseSensitive = !rules.caseSensitive); haptics.tick() },
-                            label = { Text("Respecter la casse") },
+                            label = { Text(stringResource(R.string.rename_match_case)) },
                         )
                     }
                 }
             }
 
             item(key = "case") {
-                RuleCard("Casse") {
+                RuleCard(stringResource(R.string.rename_case)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(CaseChange.NONE to "Aa", CaseChange.LOWER to "abc", CaseChange.UPPER to "ABC", CaseChange.TITLE to "Titre")
+                        listOf(CaseChange.NONE to "Aa", CaseChange.LOWER to "abc", CaseChange.UPPER to "ABC", CaseChange.TITLE to stringResource(R.string.rename_title_case))
                             .forEach { (c, label) ->
                                 ToggleButton(
                                     checked = rules.case == c,
@@ -222,11 +228,11 @@ fun BatchRenameSheet(entries: List<FileEntry>, onDismiss: () -> Unit) {
             }
 
             item(key = "ext") {
-                RuleCard("Conserver l'extension", checked = rules.keepExtension, onChecked = { rules = rules.copy(keepExtension = it); haptics.tick() }) {}
+                RuleCard(stringResource(R.string.rename_keep_extension), checked = rules.keepExtension, onChecked = { rules = rules.copy(keepExtension = it); haptics.tick() }) {}
             }
 
             item(key = "previewTitle") {
-                Text("Aperçu", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary,
+                Text(stringResource(R.string.rename_preview), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 8.dp))
             }
             itemsIndexed(preview.items, key = { _, it -> it.path }) { _, item -> PreviewRow(item) }

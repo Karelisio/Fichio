@@ -1,5 +1,8 @@
 package com.karelisio.fichio.ops.engine
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
+
 /** Pure helpers for file names: splitting, "keep both" numbering and validation. */
 object Names {
     /** Compound extensions kept together when numbering ("backup (1).tar.gz"). */
@@ -45,12 +48,12 @@ object Names {
 
     /** Returns a French error message when [name] cannot be used as a file name, null when valid. */
     fun validate(name: String): String? {
-        if (name.isBlank()) return "Le nom ne peut pas être vide"
-        if (name == "." || name == "..") return "Ce nom est réservé"
-        if ('/' in name) return "Le nom ne peut pas contenir « / »"
-        name.firstOrNull { it in FORBIDDEN_CHARS }?.let { return "Caractère interdit : « $it »" }
-        if (name.any { it.code < 32 || it.code == 127 }) return "Le nom contient un caractère invisible interdit"
-        if (name.toByteArray(Charsets.UTF_8).size > MAX_NAME_BYTES) return "Nom trop long"
+        if (name.isBlank()) return Strings.get(R.string.ops_name_empty)
+        if (name == "." || name == "..") return Strings.get(R.string.ops_name_reserved)
+        if ('/' in name) return Strings.get(R.string.ops_name_slash)
+        name.firstOrNull { it in FORBIDDEN_CHARS }?.let { return Strings.get(R.string.ops_name_forbidden_char, it) }
+        if (name.any { it.code < 32 || it.code == 127 }) return Strings.get(R.string.ops_name_invisible_char)
+        if (name.toByteArray(Charsets.UTF_8).size > MAX_NAME_BYTES) return Strings.get(R.string.ops_name_too_long)
         return null
     }
 }

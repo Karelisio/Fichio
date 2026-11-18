@@ -3,6 +3,8 @@ package com.karelisio.fichio.ops
 import com.karelisio.fichio.core.fs.FileBackend
 import com.karelisio.fichio.core.fs.LocalBackend
 import com.karelisio.fichio.core.model.FileEntry
+import com.karelisio.fichio.R
+import com.karelisio.fichio.core.util.Strings
 import com.karelisio.fichio.ops.engine.ConflictAnswer
 import com.karelisio.fichio.ops.engine.EngineListener
 import com.karelisio.fichio.ops.engine.OperationEngine
@@ -213,7 +215,8 @@ class OperationEngineTest {
                 else engine.copy(listOf(box.path), box.path + "/inner")
                 fail("expected OperationException")
             } catch (e: OperationException) {
-                assertTrue(e.message!!.contains("dans lui-même"))
+                val res = if (move) R.string.ops_err_move_into_self else R.string.ops_err_copy_into_self
+                assertEquals(Strings.get(res, "box"), e.message)
             }
         }
         assertTrue(File(root, "box/inner/a.txt").exists())
@@ -231,7 +234,7 @@ class OperationEngineTest {
             e.copy(listOf(f.path), dir("d").path)
             fail("expected OperationException")
         } catch (ex: OperationException) {
-            assertTrue(ex.message!!.startsWith("Espace insuffisant"))
+            assertTrue(ex.message!!.startsWith(Strings.get(R.string.ops_err_no_space, "").substringBefore(' ')))
         }
         assertFalse(File(root, "d/big.txt").exists())
     }
@@ -282,7 +285,7 @@ class OperationEngineTest {
     fun missingSourceIsCountedAsFailure() = runTest {
         val r = engine.copy(listOf(File(root, "nope.txt").path), dir("d").path)
         assertEquals(1, r.failed)
-        assertTrue(r.errors[0].contains("introuvable"))
+        assertTrue(r.errors[0].contains(Strings.get(R.string.ops_err_not_found)))
     }
 
     @Test

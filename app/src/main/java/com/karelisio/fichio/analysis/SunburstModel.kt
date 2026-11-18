@@ -1,5 +1,7 @@
 package com.karelisio.fichio.analysis
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import androidx.compose.runtime.Immutable
 import java.util.IdentityHashMap
 
@@ -18,7 +20,7 @@ class SunburstArc(
 
 /**
  * Sunburst layout over a [DirNode] tree. Display children are memoised by identity so that
- * "Autres" aggregates keep the same identity across layouts (needed by zoom transitions).
+ * Strings.get(R.string.analysis_others) aggregates keep the same identity across layouts (needed by zoom transitions).
  * Pure Kotlin, unit-testable.
  */
 class SunburstModel(
@@ -30,7 +32,7 @@ class SunburstModel(
     /** Colour family of every node seen in a layout (identity). */
     private val families = IdentityHashMap<DirNode, Int>()
 
-    /** Children shown for [node]: the biggest ones, with small ones aggregated into "Autres". */
+    /** Children shown for [node]: the biggest ones, with small ones aggregated into Strings.get(R.string.analysis_others). */
     fun displayChildren(node: DirNode): List<DirNode> = synchronized(cache) {
         cache.getOrPut(node) { aggregate(node) }
     }
@@ -49,7 +51,7 @@ class SunburstModel(
         } else if (rest.isNotEmpty()) {
             keep += DirNode(
                 path = "${node.dirPath}/\u0001autres",
-                name = "Autres",
+                name = Strings.get(R.string.analysis_others),
                 size = rest.sumOf { it.size },
                 fileCount = rest.sumOf { it.fileCount },
                 children = rest,

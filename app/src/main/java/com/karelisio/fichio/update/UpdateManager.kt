@@ -1,5 +1,7 @@
 package com.karelisio.fichio.update
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.content.Context
 import com.karelisio.fichio.BuildConfig
 import com.karelisio.fichio.container
@@ -56,8 +58,8 @@ object UpdateChecker {
                         ?.takeIf { ReleaseParser.isNewer(it.version, currentVersion) }
                 }
                 404 -> null // no release published yet
-                403, 429 -> throw IOException("Limite de l'API GitHub atteinte, réessayez plus tard")
-                else -> throw IOException("Réponse inattendue de GitHub ($code)")
+                403, 429 -> throw IOException(Strings.get(R.string.update_err_rate_limit))
+                else -> throw IOException(Strings.get(R.string.update_err_unexpected, code))
             }
         } finally {
             conn.disconnect()
@@ -104,7 +106,7 @@ object UpdateManager {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.value = if (force) UpdateState.Error(e.message ?: "Vérification impossible") else UpdateState.Idle
+                _state.value = if (force) UpdateState.Error(e.message ?: Strings.get(R.string.update_err_check)) else UpdateState.Idle
             }
         }
     }
@@ -142,7 +144,7 @@ object UpdateManager {
                 _state.value = UpdateState.Available(update)
                 throw e
             } catch (e: Exception) {
-                _state.value = UpdateState.Error(e.message ?: "Téléchargement impossible", update)
+                _state.value = UpdateState.Error(e.message ?: Strings.get(R.string.update_err_download), update)
             }
         }
     }
@@ -179,7 +181,7 @@ object UpdateManager {
             }
             if (code != 200) {
                 conn.disconnect()
-                throw IOException("Téléchargement refusé ($code)")
+                throw IOException(Strings.get(R.string.update_err_download_refused, code))
             }
             break
         }
@@ -210,7 +212,7 @@ object UpdateManager {
         } finally {
             conn.disconnect()
         }
-        if (!part.renameTo(target)) throw IOException("Écriture du fichier impossible")
+        if (!part.renameTo(target)) throw IOException(Strings.get(R.string.update_err_write))
         target
     }
 }

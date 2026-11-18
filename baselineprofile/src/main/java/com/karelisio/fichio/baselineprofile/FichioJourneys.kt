@@ -17,6 +17,8 @@ private const val TIMEOUT = 10_000L
 fun prepareDevice(device: UiDevice) {
     device.executeShellCommand("appops set $TARGET_PACKAGE MANAGE_EXTERNAL_STORAGE allow")
     device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.POST_NOTIFICATIONS")
+    // The journeys look for the French texts: force the per-app language (Android 13+).
+    device.executeShellCommand("cmd locale set-app-locales $TARGET_PACKAGE --locales fr")
     if (device.executeShellCommand("ls $FIXTURE/f1999.txt").isBlank()) {
         device.executeShellCommand("mkdir -p $FIXTURE/Dossier")
         // UiAutomation does not run a shell: no loops/pipes, so batch the names per command.

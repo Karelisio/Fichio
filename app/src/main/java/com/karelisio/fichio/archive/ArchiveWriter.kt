@@ -1,5 +1,7 @@
 package com.karelisio.fichio.archive
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import net.lingala.zip4j.io.outputstream.ZipOutputStream
@@ -42,12 +44,12 @@ object ArchiveWriter {
     const val MAX_LEVEL = 9
 
     fun levelLabel(level: Int): String = when (level.coerceIn(MIN_LEVEL, MAX_LEVEL)) {
-        0 -> "Stockage"
-        1 -> "Le plus rapide"
-        2, 3 -> "Rapide"
-        4, 5, 6 -> "Normal"
-        7, 8 -> "Maximum"
-        else -> "Ultra"
+        0 -> Strings.get(R.string.archive_level_store)
+        1 -> Strings.get(R.string.archive_level_fastest)
+        2, 3 -> Strings.get(R.string.archive_level_fast)
+        4, 5, 6 -> Strings.get(R.string.archive_level_normal)
+        7, 8 -> Strings.get(R.string.archive_level_max)
+        else -> Strings.get(R.string.archive_level_ultra)
     }
 
     /**
@@ -99,7 +101,7 @@ object ArchiveWriter {
         callbacks: ProgressCallbacks = object : ProgressCallbacks {},
     ): Long = withContext(Dispatchers.IO) {
         val plan = plan(sources, exclude = output)
-        if (plan.isEmpty()) throw ArchiveException("Rien à compresser")
+        if (plan.isEmpty()) throw ArchiveException(Strings.get(R.string.archive_err_nothing))
         output.parentFile?.mkdirs()
         try {
             when (options.format) {

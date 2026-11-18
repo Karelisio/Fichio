@@ -29,7 +29,7 @@ import org.robolectric.annotation.GraphicsMode
 
 /** Smoke rendering tests of the main screens (Robolectric, native graphics). */
 @RunWith(AndroidJUnit4::class)
-@Config(sdk = [35])
+@Config(sdk = [35], qualifiers = "fr")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class ScreenRenderTest {
     @get:Rule val compose = createComposeRule()

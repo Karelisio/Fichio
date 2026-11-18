@@ -1,5 +1,11 @@
 package com.karelisio.fichio.ui.browser
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -231,7 +237,7 @@ fun BrowserScreen(nav: NavHostController, initialPath: String?, newTab: Boolean)
                 if (e.isDirectory) {
                     val was = e.path in favorites
                     vm.toggleFavorite(e.path)
-                    scope.launch { snackbar.showSnackbar(if (was) "« ${e.name} » retiré des favoris" else "« ${e.name} » ajouté aux favoris") }
+                    scope.launch { snackbar.showSnackbar(if (was) Strings.get(R.string.browser_favorite_removed, e.name) else Strings.get(R.string.browser_favorite_added, e.name)) }
                 } else {
                     Opener.share(context, listOf(e.path))
                 }
@@ -356,10 +362,10 @@ fun BrowserScreen(nav: NavHostController, initialPath: String?, newTab: Boolean)
         c.operations.events.collect { e ->
             if (e is com.karelisio.fichio.ops.OperationEvent.Finished && e.undoLabel != null) {
                 scope.launch {
-                    val r = snackbar.showSnackbar(e.undoLabel, actionLabel = "Annuler", withDismissAction = true,
+                    val r = snackbar.showSnackbar(e.undoLabel, actionLabel = Strings.get(R.string.common_cancel), withDismissAction = true,
                         duration = androidx.compose.material3.SnackbarDuration.Long)
                     if (r == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-                        if (c.undo.undo()) haptics.confirm() else snackbar.showSnackbar("Impossible d'annuler")
+                        if (c.undo.undo()) haptics.confirm() else snackbar.showSnackbar(Strings.get(R.string.common_undo_failed))
                     }
                 }
             } else if (e is com.karelisio.fichio.ops.OperationEvent.Message) {
@@ -422,17 +428,17 @@ private fun BrowserTopBar(
         Modifier.fillMaxWidth().statusBarsPadding().padding(start = 4.dp, end = 4.dp, top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onHome) { Icon(Icons.Rounded.Home, "Accueil") }
+        IconButton(onClick = onHome) { Icon(Icons.Rounded.Home, stringResource(R.string.common_home)) }
         TabStrip(vm, Modifier.weight(1f))
-        IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Rechercher") }
+        IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, stringResource(R.string.shortcut_search)) }
         Box {
             IconButton(onClick = { viewMenu = true }) {
-                Icon(when (view.mode) { ViewMode.LIST -> Icons.Rounded.ViewList; ViewMode.GRID -> Icons.Rounded.GridView; ViewMode.LARGE -> Icons.Rounded.PhotoLibrary }, "Affichage")
+                Icon(when (view.mode) { ViewMode.LIST -> Icons.Rounded.ViewList; ViewMode.GRID -> Icons.Rounded.GridView; ViewMode.LARGE -> Icons.Rounded.PhotoLibrary }, stringResource(R.string.browser_view))
             }
             DropdownMenu(viewMenu, onDismissRequest = { viewMenu = false }, shape = RoundedCornerShape(20.dp)) {
-                listOf(ViewMode.LIST to "Liste", ViewMode.GRID to "Grille", ViewMode.LARGE to "Grandes miniatures").forEach { (m, label) ->
+                listOf(ViewMode.LIST to R.string.view_list, ViewMode.GRID to R.string.view_grid, ViewMode.LARGE to R.string.view_large).forEach { (m, label) ->
                     DropdownMenuItem(
-                        text = { Text(label) },
+                        text = { Text(stringResource(label)) },
                         leadingIcon = { Icon(when (m) { ViewMode.LIST -> Icons.Rounded.ViewList; ViewMode.GRID -> Icons.Rounded.GridView; ViewMode.LARGE -> Icons.Rounded.PhotoLibrary }, null) },
                         trailingIcon = { if (view.mode == m) Icon(Icons.Rounded.Check, null) },
                         onClick = { pane.setView(mode = m); viewMenu = false },
@@ -441,58 +447,58 @@ private fun BrowserTopBar(
             }
         }
         Box {
-            IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Rounded.Sort, "Trier") }
+            IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Rounded.Sort, stringResource(R.string.browser_sort)) }
             DropdownMenu(sortMenu, onDismissRequest = { sortMenu = false }, shape = RoundedCornerShape(20.dp)) {
-                listOf(SortBy.NAME to "Nom", SortBy.DATE to "Date", SortBy.SIZE to "Taille", SortBy.TYPE to "Type").forEach { (s, label) ->
+                listOf(SortBy.NAME to R.string.sort_name, SortBy.DATE to R.string.sort_date, SortBy.SIZE to R.string.sort_size, SortBy.TYPE to R.string.sort_type).forEach { (s, label) ->
                     DropdownMenuItem(
-                        text = { Text(label) },
+                        text = { Text(stringResource(label)) },
                         leadingIcon = { RadioButton(selected = view.sort.by == s, onClick = null) },
                         onClick = { pane.setView(sort = view.sort.copy(by = s)) },
                     )
                 }
                 HorizontalDivider()
                 DropdownMenuItem(
-                    text = { Text("Ordre croissant") },
+                    text = { Text(stringResource(R.string.sort_ascending_order)) },
                     leadingIcon = { Checkbox(view.sort.ascending, onCheckedChange = null) },
                     onClick = { pane.setView(sort = view.sort.copy(ascending = !view.sort.ascending)) },
                 )
                 DropdownMenuItem(
-                    text = { Text("Dossiers en premier") },
+                    text = { Text(stringResource(R.string.browser_folders_first)) },
                     leadingIcon = { Checkbox(view.sort.foldersFirst, onCheckedChange = null) },
                     onClick = { pane.setView(sort = view.sort.copy(foldersFirst = !view.sort.foldersFirst)) },
                 )
             }
         }
         Box {
-            IconButton(onClick = { more = true }) { Icon(Icons.Rounded.MoreVert, "Plus") }
+            IconButton(onClick = { more = true }) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.common_more)) }
             DropdownMenu(more, onDismissRequest = { more = false }, shape = RoundedCornerShape(20.dp)) {
-                DropdownMenuItem(text = { Text("Nouveau dossier") }, leadingIcon = { Icon(Icons.Rounded.CreateNewFolder, null) }, onClick = { more = false; onNewItem(true) })
-                DropdownMenuItem(text = { Text("Nouveau fichier") }, leadingIcon = { Icon(Icons.Rounded.NoteAdd, null) }, onClick = { more = false; onNewItem(false) })
-                DropdownMenuItem(text = { Text("Tout sélectionner") }, leadingIcon = { Icon(Icons.Rounded.SelectAll, null) }, onClick = { more = false; pane.selectAll() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.browser_new_folder)) }, leadingIcon = { Icon(Icons.Rounded.CreateNewFolder, null) }, onClick = { more = false; onNewItem(true) })
+                DropdownMenuItem(text = { Text(stringResource(R.string.browser_new_file)) }, leadingIcon = { Icon(Icons.Rounded.NoteAdd, null) }, onClick = { more = false; onNewItem(false) })
+                DropdownMenuItem(text = { Text(stringResource(R.string.browser_select_all)) }, leadingIcon = { Icon(Icons.Rounded.SelectAll, null) }, onClick = { more = false; pane.selectAll() })
                 HorizontalDivider()
                 DropdownMenuItem(
-                    text = { Text(if (isFavorite) "Retirer des favoris" else "Ajouter aux favoris") },
+                    text = { Text(if (isFavorite) stringResource(R.string.browser_remove_favorite) else stringResource(R.string.browser_add_favorite)) },
                     leadingIcon = { Icon(if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarOutline, null) },
                     onClick = { more = false; vm.toggleFavorite(pane.path) },
                 )
-                DropdownMenuItem(text = { Text("Épingler") }, leadingIcon = { Icon(Icons.Rounded.PushPin, null) }, onClick = { more = false; vm.pin(pane.path) })
-                DropdownMenuItem(text = { Text("Raccourci sur l'écran d'accueil") }, leadingIcon = { Icon(Icons.Rounded.AddHome, null) }, onClick = { more = false; onPinShortcut() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.browser_pin)) }, leadingIcon = { Icon(Icons.Rounded.PushPin, null) }, onClick = { more = false; vm.pin(pane.path) })
+                DropdownMenuItem(text = { Text(stringResource(R.string.browser_home_shortcut)) }, leadingIcon = { Icon(Icons.Rounded.AddHome, null) }, onClick = { more = false; onPinShortcut() })
                 DropdownMenuItem(
-                    text = { Text("Nouvel onglet") }, leadingIcon = { Icon(Icons.Rounded.Tab, null) },
+                    text = { Text(stringResource(R.string.browser_new_tab)) }, leadingIcon = { Icon(Icons.Rounded.Tab, null) },
                     enabled = vm.tabs.size < MAX_TABS, onClick = { more = false; vm.addTab(pane.path) },
                 )
                 if (dualAvailable) DropdownMenuItem(
-                    text = { Text(if (dualOn) "Volet unique" else "Double volet") }, leadingIcon = { Icon(Icons.Rounded.SwapHoriz, null) },
+                    text = { Text(if (dualOn) stringResource(R.string.browser_single_pane) else stringResource(R.string.browser_dual_pane)) }, leadingIcon = { Icon(Icons.Rounded.SwapHoriz, null) },
                     onClick = { more = false; onToggleDual() },
                 )
                 HorizontalDivider()
                 DropdownMenuItem(
-                    text = { Text("Fichiers cachés") },
+                    text = { Text(stringResource(R.string.browser_hidden_files)) },
                     leadingIcon = { Icon(if (showHidden) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff, null) },
                     trailingIcon = { Checkbox(showHidden, onCheckedChange = null) },
                     onClick = { more = false; vm.setShowHidden(!showHidden) },
                 )
-                DropdownMenuItem(text = { Text("Propriétés du dossier") }, leadingIcon = { Icon(Icons.Rounded.Info, null) }, onClick = { more = false; onProperties() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.browser_folder_properties)) }, leadingIcon = { Icon(Icons.Rounded.Info, null) }, onClick = { more = false; onProperties() })
             }
         }
     }
@@ -513,21 +519,21 @@ private fun TabStrip(vm: BrowserViewModel, modifier: Modifier) {
                 color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier.padding(end = 6.dp).graphicsLayer { scaleX = scale; scaleY = scale }.animateContentSize(bouncy()),
             ) {
-                Row(Modifier.padding(start = 14.dp, end = if (selected && vm.tabs.size > 1) 4.dp else 14.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(start = 14.dp, end = if (selected && vm.tabs.size > 1) 0.dp else 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        StoragePaths.name(tab.path).ifEmpty { "/" }.let { if (tab.path == StoragePaths.primary) "Interne" else it },
+                        StoragePaths.name(tab.path).ifEmpty { "/" }.let { if (tab.path == StoragePaths.primary) stringResource(R.string.browser_tab_internal) else it },
                         style = MaterialTheme.typography.labelLarge,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.widthIn(max = 140.dp),
                     )
                     if (selected && vm.tabs.size > 1) {
-                        IconButton(onClick = { vm.closeTab(i) }, modifier = Modifier.size(28.dp)) { Icon(Icons.Rounded.Close, "Fermer l'onglet", Modifier.size(16.dp)) }
+                        IconButton(onClick = { vm.closeTab(i) }, modifier = Modifier.minimumInteractiveComponentSize()) { Icon(Icons.Rounded.Close, stringResource(R.string.browser_close_tab), Modifier.size(16.dp)) }
                     }
                 }
             }
         }
         if (vm.tabs.size < MAX_TABS) {
-            IconButton(onClick = { vm.addTab(); haptics.tick() }) { Icon(Icons.Rounded.Add, "Nouvel onglet") }
+            IconButton(onClick = { vm.addTab(); haptics.tick() }) { Icon(Icons.Rounded.Add, stringResource(R.string.browser_new_tab)) }
         }
     }
 }
@@ -538,11 +544,11 @@ private fun SelectionTopBar(count: Int, onClose: () -> Unit, onSelectAll: () -> 
         Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).statusBarsPadding().padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, "Annuler la sélection") }
+        IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, stringResource(R.string.browser_cancel_selection)) }
         AnimatedCounter("$count", style = MaterialTheme.typography.titleLarge)
-        Text(if (count > 1) " sélectionnés" else " sélectionné", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        TextButton(onClick = onInvert) { Text("Inverser") }
-        IconButton(onClick = onSelectAll) { Icon(Icons.Rounded.SelectAll, "Tout sélectionner") }
+        Text(" " + pluralStringResource(R.plurals.browser_selected_suffix, count), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        TextButton(onClick = onInvert) { Text(stringResource(R.string.browser_invert)) }
+        IconButton(onClick = onSelectAll) { Icon(Icons.Rounded.SelectAll, stringResource(R.string.browser_select_all)) }
     }
 }
 
@@ -571,29 +577,29 @@ private fun SelectionToolbar(
         expanded = true,
         colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
     ) {
-        IconButton(onClick = onCopy) { Icon(Icons.Rounded.ContentCopy, "Copier") }
-        IconButton(onClick = onCut) { Icon(Icons.Rounded.ContentCut, "Couper") }
-        IconButton(onClick = onRename) { Icon(Icons.Rounded.DriveFileRenameOutline, "Renommer") }
-        IconButton(onClick = onShare, enabled = entries.any { !it.isDirectory }) { Icon(Icons.Rounded.Share, "Partager") }
-        IconButton(onClick = onDelete) { Icon(Icons.Rounded.Delete, "Supprimer") }
+        IconButton(onClick = onCopy) { Icon(Icons.Rounded.ContentCopy, stringResource(R.string.common_copy)) }
+        IconButton(onClick = onCut) { Icon(Icons.Rounded.ContentCut, stringResource(R.string.common_cut)) }
+        IconButton(onClick = onRename) { Icon(Icons.Rounded.DriveFileRenameOutline, stringResource(R.string.common_rename)) }
+        IconButton(onClick = onShare, enabled = entries.any { !it.isDirectory }) { Icon(Icons.Rounded.Share, stringResource(R.string.common_share)) }
+        IconButton(onClick = onDelete) { Icon(Icons.Rounded.Delete, stringResource(R.string.common_delete)) }
         Box {
-            IconButton(onClick = { more = true }) { Icon(Icons.Rounded.MoreVert, "Plus") }
+            IconButton(onClick = { more = true }) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.common_more)) }
             DropdownMenu(more, onDismissRequest = { more = false }, shape = RoundedCornerShape(20.dp)) {
-                DropdownMenuItem(text = { Text("Étiquettes…") }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.Label, null) }, onClick = { more = false; onTags() })
-                DropdownMenuItem(text = { Text("Compresser") }, leadingIcon = { Icon(Icons.Rounded.FolderZip, null) }, onClick = { more = false; onCompress() })
-                if (single != null && single.type == FileType.ARCHIVE) DropdownMenuItem(text = { Text("Extraire") }, leadingIcon = { Icon(Icons.Rounded.Unarchive, null) }, onClick = { more = false; onExtract(single) })
-                if (entries.size > 1) DropdownMenuItem(text = { Text("Renommer en lot") }, leadingIcon = { Icon(Icons.Rounded.Edit, null) }, onClick = { more = false; onBatchRename() })
-                if (single != null && !single.isDirectory) DropdownMenuItem(text = { Text("Ouvrir avec…") }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) }, onClick = { more = false; onOpenWith(single) })
+                DropdownMenuItem(text = { Text(stringResource(R.string.browser_tags)) }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.Label, null) }, onClick = { more = false; onTags() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.browser_compress)) }, leadingIcon = { Icon(Icons.Rounded.FolderZip, null) }, onClick = { more = false; onCompress() })
+                if (single != null && single.type == FileType.ARCHIVE) DropdownMenuItem(text = { Text(stringResource(R.string.browser_extract)) }, leadingIcon = { Icon(Icons.Rounded.Unarchive, null) }, onClick = { more = false; onExtract(single) })
+                if (entries.size > 1) DropdownMenuItem(text = { Text(stringResource(R.string.browser_batch_rename)) }, leadingIcon = { Icon(Icons.Rounded.Edit, null) }, onClick = { more = false; onBatchRename() })
+                if (single != null && !single.isDirectory) DropdownMenuItem(text = { Text(stringResource(R.string.browser_open_with)) }, leadingIcon = { Icon(Icons.AutoMirrored.Rounded.OpenInNew, null) }, onClick = { more = false; onOpenWith(single) })
                 if (single != null && single.isDirectory) {
                     DropdownMenuItem(
-                        text = { Text(if (single.path in favorites) "Retirer des favoris" else "Ajouter aux favoris") },
+                        text = { Text(if (single.path in favorites) stringResource(R.string.browser_remove_favorite) else stringResource(R.string.browser_add_favorite)) },
                         leadingIcon = { Icon(if (single.path in favorites) Icons.Rounded.Star else Icons.Rounded.StarOutline, null) },
                         onClick = { more = false; onFavorite(single) },
                     )
-                    DropdownMenuItem(text = { Text("Ouvrir dans un onglet") }, leadingIcon = { Icon(Icons.Rounded.Tab, null) }, onClick = { more = false; onOpenInTab(single) })
-                    DropdownMenuItem(text = { Text("Raccourci sur l'écran d'accueil") }, leadingIcon = { Icon(Icons.Rounded.AddHome, null) }, onClick = { more = false; onPinShortcut(single) })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.browser_open_in_tab)) }, leadingIcon = { Icon(Icons.Rounded.Tab, null) }, onClick = { more = false; onOpenInTab(single) })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.browser_home_shortcut)) }, leadingIcon = { Icon(Icons.Rounded.AddHome, null) }, onClick = { more = false; onPinShortcut(single) })
                 }
-                DropdownMenuItem(text = { Text("Propriétés") }, leadingIcon = { Icon(Icons.Rounded.Info, null) }, onClick = { more = false; onProperties() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.common_properties)) }, leadingIcon = { Icon(Icons.Rounded.Info, null) }, onClick = { more = false; onProperties() })
             }
         }
     }
@@ -617,14 +623,14 @@ private fun PasteBar(content: ClipContent, onPaste: () -> Unit, onCancel: () -> 
             Spacer(Modifier.width(8.dp))
             Column(Modifier.widthIn(max = 180.dp)) {
                 Text(Format.items(content.entries.size), style = MaterialTheme.typography.labelLarge)
-                Text(if (content.cut) "Déplacer ici" else "Copier ici", style = MaterialTheme.typography.labelSmall)
+                Text(if (content.cut) stringResource(R.string.browser_move_here) else stringResource(R.string.browser_copy_here), style = MaterialTheme.typography.labelSmall)
             }
             Spacer(Modifier.width(8.dp))
-            TextButton(onClick = onCancel) { Text("Annuler", color = MaterialTheme.colorScheme.inversePrimary) }
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel), color = MaterialTheme.colorScheme.inversePrimary) }
             androidx.compose.material3.Button(onClick = onPaste, shapes = androidx.compose.material3.ButtonDefaults.shapes()) {
                 Icon(if (content.cut) Icons.AutoMirrored.Rounded.DriveFileMove else Icons.Rounded.ContentPaste, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Coller")
+                Text(stringResource(R.string.browser_paste))
             }
         }
     }
@@ -632,10 +638,10 @@ private fun PasteBar(content: ClipContent, onPaste: () -> Unit, onCancel: () -> 
 
 @Composable
 private fun PickerBar(count: Int, onChoose: () -> Unit) {
-    androidx.compose.material3.Button(onClick = onChoose, enabled = count > 0, modifier = Modifier.height(56.dp)) {
+    androidx.compose.material3.Button(onClick = onChoose, enabled = count > 0, modifier = Modifier.heightIn(min = 56.dp)) {
         Icon(Icons.Rounded.Check, null)
         Spacer(Modifier.width(8.dp))
-        Text("Choisir ($count)")
+        Text(stringResource(R.string.browser_pick_count, count))
     }
 }
 
@@ -649,15 +655,15 @@ private fun NewItemFab(visible: Boolean, onNewFolder: () -> Unit, onNewFile: () 
             ToggleFloatingActionButton(
                 checked = expanded,
                 onCheckedChange = { expanded = it },
-                modifier = Modifier.semantics { contentDescription = "Créer" }.animateFloatingActionButton(visible, Alignment.BottomEnd),
+                modifier = Modifier.semantics { contentDescription = Strings.get(R.string.browser_create) }.animateFloatingActionButton(visible, Alignment.BottomEnd),
             ) {
                 val icon = if (checkedProgress > 0.5f) Icons.Rounded.Close else Icons.Rounded.Add
                 Icon(icon, null, Modifier.animateIcon({ checkedProgress }))
             }
         },
     ) {
-        FloatingActionButtonMenuItem(onClick = { expanded = false; onNewFolder() }, icon = { Icon(Icons.Rounded.CreateNewFolder, null) }, text = { Text("Nouveau dossier") })
-        FloatingActionButtonMenuItem(onClick = { expanded = false; onNewFile() }, icon = { Icon(Icons.Rounded.NoteAdd, null) }, text = { Text("Nouveau fichier") })
+        FloatingActionButtonMenuItem(onClick = { expanded = false; onNewFolder() }, icon = { Icon(Icons.Rounded.CreateNewFolder, null) }, text = { Text(stringResource(R.string.browser_new_folder)) })
+        FloatingActionButtonMenuItem(onClick = { expanded = false; onNewFile() }, icon = { Icon(Icons.Rounded.NoteAdd, null) }, text = { Text(stringResource(R.string.browser_new_file)) })
     }
 }
 
@@ -667,18 +673,18 @@ private fun DeleteDialog(entries: List<FileEntry>, trashEnabled: Boolean, onDism
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Rounded.Delete, null) },
-        title = { Text(if (entries.size == 1) "Supprimer « ${entries[0].name} » ?" else "Supprimer ${entries.size} éléments ?") },
+        title = { Text(if (entries.size == 1) stringResource(R.string.browser_delete_one, entries[0].name) else pluralStringResource(R.plurals.browser_delete_many, entries.size, entries.size)) },
         text = {
             Column {
-                Text(if (permanent) "Ils seront supprimés définitivement." else "Ils iront dans la corbeille, restaurables pendant le délai choisi.")
+                Text(if (permanent) stringResource(R.string.browser_delete_permanent_body) else stringResource(R.string.browser_delete_trash_body))
                 if (trashEnabled) Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(permanent, onCheckedChange = { permanent = it })
-                    Text("Supprimer définitivement")
+                    Text(stringResource(R.string.browser_delete_permanently))
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(permanent) }) { Text("Supprimer") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+        confirmButton = { TextButton(onClick = { onConfirm(permanent) }) { Text(stringResource(R.string.common_delete)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 

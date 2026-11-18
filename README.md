@@ -9,6 +9,8 @@ est la vérification de mise à jour sur l'API publique GitHub (désactivable).
 
 Package : `com.karelisio.fichio` · minSdk 30 (Android 11) · targetSdk 36 · compileSdk 37.
 
+Langues : français (par défaut) et anglais, au choix par appli sur Android 13+ (Réglages système › Applis › Fichio › Langue).
+
 ---
 
 ## Fonctionnalités

@@ -1,5 +1,11 @@
 package com.karelisio.fichio.apk
 
+import com.karelisio.fichio.ui.components.selectionSemantics
+import androidx.compose.foundation.layout.heightIn
+import com.karelisio.fichio.core.util.Strings
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.karelisio.fichio.R
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.util.LruCache
@@ -188,7 +194,7 @@ fun ApkInfoScreen(path: String, onBack: () -> Unit) {
         }
         haptics.click()
         val sources = d.installSources()
-        val id = context.launchTask(JobKind.INSTALL, "Installation de ${d.label}", listOf(d.path), null) {
+        val id = context.launchTask(JobKind.INSTALL, Strings.get(R.string.apk_installing_title, d.label), listOf(d.path), null) {
             ApkInstaller.installSources(context, sources, d.packageName, onProgress = { done, total, name -> progress(done, total, name) }, checkpoint = { checkpoint() })
         }
         // Operations module unavailable: install directly, the screen still shows progress.
@@ -205,7 +211,7 @@ fun ApkInfoScreen(path: String, onBack: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Paquet d'application") }, navigationIcon = { BackButton(onBack) }) },
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.apk_package_title)) }, navigationIcon = { BackButton(onBack) }) },
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             if (details != null) InstallBar(details, ownState, onInstall = { startInstall(details) }, onOpen = {
@@ -218,11 +224,11 @@ fun ApkInfoScreen(path: String, onBack: () -> Unit) {
                 result == null -> Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                     LoadingIndicator(Modifier.size(64.dp))
                     Spacer(Modifier.height(12.dp))
-                    Text("Analyse du paquet…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.apk_parsing), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 details == null -> EmptyState(
-                    Icons.Rounded.ErrorOutline, "Paquet illisible", Modifier.align(Alignment.Center),
-                    message = result?.exceptionOrNull()?.message ?: "Ce fichier n'est pas un APK valide.",
+                    Icons.Rounded.ErrorOutline, stringResource(R.string.apk_unreadable), Modifier.align(Alignment.Center),
+                    message = result?.exceptionOrNull()?.message ?: stringResource(R.string.apk_not_valid),
                 )
                 else -> ApkDetailsContent(details)
             }
@@ -233,16 +239,16 @@ fun ApkInfoScreen(path: String, onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { askUnknownSources = false },
             icon = { Icon(Icons.Rounded.Shield, null) },
-            title = { Text("Autoriser l'installation") },
-            text = { Text("Pour installer des applis, autorisez Fichio dans « Installer des applis inconnues ». Vous reviendrez ici ensuite.") },
+            title = { Text(stringResource(R.string.apk_allow_install)) },
+            text = { Text(stringResource(R.string.apk_allow_install_body)) },
             confirmButton = {
                 Button(onClick = {
                     askUnknownSources = false
                     pendingInstall = true
                     ApkInstaller.openUnknownSourcesSettings(context)
-                }) { Text("Ouvrir les réglages") }
+                }) { Text(stringResource(R.string.perm_open_settings)) }
             },
-            dismissButton = { TextButton(onClick = { askUnknownSources = false }) { Text("Plus tard") } },
+            dismissButton = { TextButton(onClick = { askUnknownSources = false }) { Text(stringResource(R.string.update_later)) } },
         )
     }
 }
@@ -264,7 +270,7 @@ private fun InstallBar(details: ApkDetails, state: InstallState?, onInstall: () 
             AnimatedContent(state, contentKey = { it?.javaClass }, label = "installState") { s ->
                 when (s) {
                     is InstallState.Writing -> Column {
-                        Text("Préparation de l'installation…", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.apk_preparing), style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(8.dp))
                         val p by animateFloatAsState(s.progress, label = "p")
                         LinearWavyProgressIndicator(progress = { p }, modifier = Modifier.fillMaxWidth())
@@ -272,7 +278,7 @@ private fun InstallBar(details: ApkDetails, state: InstallState?, onInstall: () 
                     }
                     is InstallState.WaitingUser -> Row(Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         LoadingIndicator(Modifier.size(28.dp)); Spacer(Modifier.width(8.dp))
-                        Text("En attente de votre confirmation…")
+                        Text(stringResource(R.string.apk_waiting_confirm))
                     }
                     is InstallState.Failure -> Row(Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.ErrorOutline, null, tint = MaterialTheme.colorScheme.error); Spacer(Modifier.width(8.dp))
@@ -280,7 +286,7 @@ private fun InstallBar(details: ApkDetails, state: InstallState?, onInstall: () 
                     }
                     is InstallState.Success -> Row(Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.CheckCircle, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(8.dp))
-                        Text("Appli installée", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.apk_installed), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleSmall)
                     }
                     else -> Spacer(Modifier.height(0.dp))
                 }
@@ -288,8 +294,8 @@ private fun InstallBar(details: ApkDetails, state: InstallState?, onInstall: () 
             val busy = state is InstallState.Writing || state is InstallState.WaitingUser
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (state is InstallState.Success || (relation != InstallRelation.NOT_INSTALLED && !busy)) {
-                    OutlinedButton(onClick = onOpen, modifier = Modifier.height(56.dp), shapes = ButtonDefaults.shapes()) {
-                        Icon(Icons.Rounded.OpenInNew, null); Spacer(Modifier.width(6.dp)); Text("Ouvrir")
+                    OutlinedButton(onClick = onOpen, modifier = Modifier.heightIn(min = 56.dp), shapes = ButtonDefaults.shapes()) {
+                        Icon(Icons.Rounded.OpenInNew, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.common_open))
                     }
                 }
                 if (state !is InstallState.Success) {
@@ -297,16 +303,16 @@ private fun InstallBar(details: ApkDetails, state: InstallState?, onInstall: () 
                         onClick = onInstall,
                         enabled = !busy && !blocked,
                         shapes = ButtonDefaults.shapes(),
-                        modifier = Modifier.weight(1f).height(56.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                     ) {
                         Icon(if (relation == InstallRelation.UPDATE) Icons.Rounded.SystemUpdate else Icons.Rounded.InstallMobile, null)
                         Spacer(Modifier.width(8.dp))
                         Text(
                             when (relation) {
-                                InstallRelation.NOT_INSTALLED -> "Installer"
-                                InstallRelation.UPDATE -> "Mettre à jour"
-                                InstallRelation.SAME_VERSION -> "Réinstaller"
-                                InstallRelation.DOWNGRADE -> "Rétrograder"
+                                InstallRelation.NOT_INSTALLED -> stringResource(R.string.apk_install)
+                                InstallRelation.UPDATE -> stringResource(R.string.update_update)
+                                InstallRelation.SAME_VERSION -> stringResource(R.string.apk_reinstall)
+                                InstallRelation.DOWNGRADE -> stringResource(R.string.apk_downgrade)
                             },
                             style = MaterialTheme.typography.titleMedium,
                         )
@@ -332,8 +338,8 @@ private fun ApkDetailsContent(d: ApkDetails) {
                 Spacer(Modifier.height(14.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     InfoPill("v${d.versionName ?: "?"} (${d.versionCode})", Icons.Rounded.Verified, 0)
-                    InfoPill("Android ${ApkFormat.androidVersion(d.minSdk)}+", Icons.Rounded.Android, 1)
-                    InfoPill("Cible API ${d.targetSdk}", null, 2)
+                    InfoPill(stringResource(R.string.apk_android_min_pill, ApkFormat.androidVersion(d.minSdk)), Icons.Rounded.Android, 1)
+                    InfoPill(stringResource(R.string.apk_target_api, d.targetSdk), null, 2)
                     InfoPill(Format.size(d.fileSize), null, 3)
                     if (d.isBundle) InfoPill("${d.splits.size} APK", Icons.Rounded.Extension, 4)
                 }
@@ -354,14 +360,14 @@ private fun ApkDetailsContent(d: ApkDetails) {
                     Icon(Icons.Rounded.Shield, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Autorisations (${d.permissions.size})", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.apk_permissions_count, d.permissions.size), style = MaterialTheme.typography.titleMedium)
                         Text(
-                            if (d.dangerousCount > 0) "${Format.count(d.dangerousCount, "autorisation sensible", "autorisations sensibles")}" else "Aucune autorisation sensible",
+                            if (d.dangerousCount > 0) pluralStringResource(R.plurals.apk_sensitive_permissions, d.dangerousCount, d.dangerousCount) else stringResource(R.string.apk_no_sensitive),
                             style = MaterialTheme.typography.bodySmall,
                             color = if (d.dangerousCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Icon(Icons.Rounded.ExpandMore, if (permissionsOpen) "Replier" else "Déplier", Modifier.graphicsLayer { rotationZ = rotation })
+                    Icon(Icons.Rounded.ExpandMore, if (permissionsOpen) stringResource(R.string.apk_collapse) else stringResource(R.string.apk_expand), Modifier.graphicsLayer { rotationZ = rotation })
                 }
             }
         }
@@ -370,12 +376,12 @@ private fun ApkDetailsContent(d: ApkDetails) {
                 PermissionRow(p, Modifier.animateItem().cascadeIn(i, "perm"))
             }
             if (d.permissions.isEmpty()) item(key = "noperm") {
-                Text("Cette appli ne demande aucune autorisation.", Modifier.padding(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.apk_no_permissions), Modifier.padding(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
         if (d.isBundle) {
-            item(key = "splitsHeader") { SectionHeader("Contenu du paquet") }
+            item(key = "splitsHeader") { SectionHeader(stringResource(R.string.apk_package_content)) }
             itemsIndexed(d.splits, key = { _, s -> "split:" + s.entryName }) { i, s ->
                 SplitRow(s, s in d.selectedSplits, Modifier.cascadeIn(i, "split"))
             }
@@ -434,11 +440,11 @@ private fun InfoPill(text: String, icon: ImageVector?, index: Int) {
 private fun InstalledStateCard(d: ApkDetails, modifier: Modifier = Modifier) {
     val st = d.installed
     val (icon, title, subtitle, warn) = when {
-        st.signatureMatches == false -> Quad(Icons.Rounded.Warning, "Signature différente", "L'appli installée (version ${st.versionName}) est signée par un autre développeur. Désinstallez-la pour installer celle-ci.", true)
-        st.relation == InstallRelation.NOT_INSTALLED -> Quad(Icons.Rounded.InstallMobile, "Pas encore installée", "Cette appli n'est pas présente sur l'appareil.", false)
-        st.relation == InstallRelation.UPDATE -> Quad(Icons.Rounded.SystemUpdate, "Mise à jour disponible", "Version installée : ${st.versionName} (${st.versionCode}) → ${d.versionName} (${d.versionCode})", false)
-        st.relation == InstallRelation.DOWNGRADE -> Quad(Icons.Rounded.Warning, "Rétrogradation", "Une version plus récente est installée (${st.versionName}). Android refusera probablement cette version plus ancienne.", true)
-        else -> Quad(Icons.Rounded.CheckCircle, "Déjà installée", "Même version installée (${st.versionName}).", false)
+        st.signatureMatches == false -> Quad(Icons.Rounded.Warning, stringResource(R.string.apk_sig_different), Strings.get(R.string.apk_sig_different_body, st.versionName), true)
+        st.relation == InstallRelation.NOT_INSTALLED -> Quad(Icons.Rounded.InstallMobile, Strings.get(R.string.apk_not_installed), Strings.get(R.string.apk_not_installed_body), false)
+        st.relation == InstallRelation.UPDATE -> Quad(Icons.Rounded.SystemUpdate, Strings.get(R.string.apk_update_available), Strings.get(R.string.apk_update_body, st.versionName, st.versionCode, d.versionName, d.versionCode), false)
+        st.relation == InstallRelation.DOWNGRADE -> Quad(Icons.Rounded.Warning, Strings.get(R.string.apk_downgrade_title), Strings.get(R.string.apk_downgrade_body, st.versionName), true)
+        else -> Quad(Icons.Rounded.CheckCircle, stringResource(R.string.apk_already_installed), Strings.get(R.string.apk_same_version, st.versionName), false)
     }
     val container = if (warn) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.tertiaryContainer
     val content = if (warn) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onTertiaryContainer
@@ -462,23 +468,23 @@ private data class Quad(val icon: ImageVector, val title: String, val subtitle: 
 private fun CompatibilityCard(d: ApkDetails, modifier: Modifier = Modifier) {
     Surface(modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Compatibilité", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.apk_compatibility), style = MaterialTheme.typography.titleMedium)
             CompatRow(
                 d.sdkCompatible, 0,
-                "Android ${ApkFormat.androidVersion(d.minSdk)} minimum (API ${d.minSdk})",
-                "Appareil : Android ${ApkFormat.androidVersion(d.deviceSdk)} (API ${d.deviceSdk})",
+                stringResource(R.string.apk_android_min, ApkFormat.androidVersion(d.minSdk), d.minSdk),
+                stringResource(R.string.apk_device_android, ApkFormat.androidVersion(d.deviceSdk), d.deviceSdk),
             )
             CompatRow(
                 d.abiCompatible, 1,
-                if (d.nativeAbis.isEmpty()) "Aucune bibliothèque native" else "Architectures : ${d.nativeAbis.joinToString(", ")}",
-                "Appareil : ${d.deviceAbis.joinToString(", ")}",
+                if (d.nativeAbis.isEmpty()) stringResource(R.string.apk_no_native) else stringResource(R.string.apk_architectures, d.nativeAbis.joinToString(", ")),
+                stringResource(R.string.apk_device_abis, d.deviceAbis.joinToString(", ")),
                 icon = Icons.Rounded.Memory,
             )
             if (d.isBundle) {
                 CompatRow(
                     d.selectedSplits.any { it.kind == SplitKind.BASE }, 2,
-                    "${d.selectedSplits.size} APK sur ${d.splits.size} seront installés",
-                    "Choisis selon l'architecture, la densité d'écran et les langues de l'appareil",
+                    stringResource(R.string.apk_splits_selected, d.selectedSplits.size, d.splits.size),
+                    stringResource(R.string.apk_splits_reason),
                     icon = Icons.Rounded.Extension,
                 )
             }
@@ -526,18 +532,18 @@ private fun SignatureCard(d: ApkDetails, modifier: Modifier = Modifier) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Verified, null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(12.dp))
-                Text("Signature", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.apk_signature), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 d.certificates.firstOrNull()?.let { cert ->
                     IconButton(onClick = {
                         haptics.confirm()
                         context.getSystemService(ClipboardManager::class.java)
                             ?.setPrimaryClip(ClipData.newPlainText("SHA-256", cert.sha256))
-                        Toast.makeText(context, "Empreinte copiée", Toast.LENGTH_SHORT).show()
-                    }) { Icon(Icons.Rounded.ContentCopy, "Copier l'empreinte") }
+                        Toast.makeText(context, Strings.get(R.string.apk_fingerprint_copied), Toast.LENGTH_SHORT).show()
+                    }) { Icon(Icons.Rounded.ContentCopy, stringResource(R.string.apk_copy_fingerprint)) }
                 }
             }
             if (d.certificates.isEmpty()) {
-                Text("Aucune signature lisible : cet APK ne pourra sans doute pas être installé.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.apk_no_signature), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
             d.certificates.forEach { cert ->
                 Spacer(Modifier.height(6.dp))
@@ -550,7 +556,7 @@ private fun SignatureCard(d: ApkDetails, modifier: Modifier = Modifier) {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 }
                 if (cert.validUntil > 0) Text(
-                    "Valide jusqu'au ${Format.shortDate(cert.validUntil)}",
+                    stringResource(R.string.apk_valid_until, Format.shortDate(cert.validUntil)),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -642,10 +648,10 @@ fun InstalledAppsScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
         when (job.state) {
             JobState.DONE -> {
                 haptics.confirm()
-                val r = snackbar.showSnackbar("APK enregistré dans Download/Fichio APK", actionLabel = "Ouvrir le dossier", duration = SnackbarDuration.Long)
+                val r = snackbar.showSnackbar(Strings.get(R.string.apk_saved), actionLabel = Strings.get(R.string.common_open_folder), duration = SnackbarDuration.Long)
                 if (r == SnackbarResult.ActionPerformed) onOpenFolder(AppExporter.exportDir.path)
             }
-            JobState.FAILED -> snackbar.showSnackbar(job.error ?: "Échec de l'extraction")
+            JobState.FAILED -> snackbar.showSnackbar(job.error ?: Strings.get(R.string.apk_extract_failed))
             else -> Unit
         }
     }
@@ -654,7 +660,7 @@ fun InstalledAppsScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
         if (targets.isEmpty()) return
         haptics.click()
         val dir = AppExporter.exportDir
-        val title = targets.singleOrNull()?.let { "Extraction de ${it.label}" } ?: "Extraction de ${targets.size} APK"
+        val title = targets.singleOrNull()?.let { Strings.get(R.string.apk_extracting_one, it.label) } ?: Strings.get(R.string.apk_extracting_many, targets.size)
         val id = context.launchTask(JobKind.EXPORT, title, targets.map { it.sourceDir }, dir.path) {
             val total = targets.sumOf { it.totalSize }
             var base = 0L
@@ -679,7 +685,7 @@ fun InstalledAppsScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
                 context.container.fileSystems.notifyChanged(dir.path, dir.parent ?: dir.path)
             }
         }
-        if (id == null) scope.launch { snackbar.showSnackbar("Impossible de lancer l'extraction") }
+        if (id == null) scope.launch { snackbar.showSnackbar(Strings.get(R.string.apk_extract_start_failed)) }
         else { jobId = id; selection = emptySet() }
     }
 
@@ -693,23 +699,23 @@ fun InstalledAppsScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
                     title = {
                         Row {
                             AnimatedCounter(selection.size.toString(), style = MaterialTheme.typography.titleLarge)
-                            Text(if (selection.size > 1) " sélectionnées" else " sélectionnée", style = MaterialTheme.typography.titleLarge)
+                            Text(" " + pluralStringResource(R.plurals.apk_selected_suffix, selection.size), style = MaterialTheme.typography.titleLarge)
                         }
                     },
-                    navigationIcon = { IconButton(onClick = { selection = emptySet() }) { Icon(Icons.Rounded.Close, "Annuler la sélection") } },
+                    navigationIcon = { IconButton(onClick = { selection = emptySet() }) { Icon(Icons.Rounded.Close, stringResource(R.string.browser_cancel_selection)) } },
                     actions = {
                         IconButton(onClick = {
                             haptics.tick()
                             val all = visible.map { it.packageName }.toSet()
                             selection = if (selection.containsAll(all)) emptySet() else all
-                        }) { Icon(Icons.Rounded.SelectAll, "Tout sélectionner") }
+                        }) { Icon(Icons.Rounded.SelectAll, stringResource(R.string.browser_select_all)) }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
                 ) else TopAppBar(
                     title = {
                         Column {
-                            Text("Applications")
-                            apps?.let { Text(Format.count(visible.size, "appli"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            Text(stringResource(R.string.home_apps))
+                            apps?.let { Text(pluralStringResource(R.plurals.apk_apps_count, visible.size, visible.size), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         }
                     },
                     navigationIcon = { BackButton(onBack) },
@@ -724,7 +730,7 @@ fun InstalledAppsScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
                 ExtendedFloatingActionButton(
                     onClick = { export(apps.orEmpty().filter { it.packageName in selection }) },
                     icon = { Icon(Icons.Rounded.Download, null) },
-                    text = { Text("Extraire l'APK") },
+                    text = { Text(stringResource(R.string.apk_extract)) },
                     interactionSource = interaction,
                     modifier = Modifier.pressScale(interaction),
                 )
@@ -734,11 +740,11 @@ fun InstalledAppsScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
         Column(Modifier.fillMaxSize().padding(padding)) {
             TextField(
                 value = query, onValueChange = { query = it },
-                placeholder = { Text("Rechercher une appli") },
+                placeholder = { Text(stringResource(R.string.apk_search_hint)) },
                 leadingIcon = { Icon(Icons.Rounded.Search, null) },
                 trailingIcon = {
                     AnimatedVisibility(query.isNotEmpty(), enter = scaleIn(bouncy()), exit = scaleOut()) {
-                        IconButton(onClick = { query = "" }) { Icon(Icons.Rounded.Close, "Effacer") }
+                        IconButton(onClick = { query = "" }) { Icon(Icons.Rounded.Close, stringResource(R.string.search_clear)) }
                     }
                 },
                 singleLine = true,
@@ -753,7 +759,7 @@ fun InstalledAppsScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
                 FilterChip(
                     selected = showSystem,
                     onClick = { haptics.tick(); showSystem = !showSystem },
-                    label = { Text("Applis système") },
+                    label = { Text(stringResource(R.string.apk_system_apps)) },
                     leadingIcon = {
                         AnimatedVisibility(showSystem, enter = scaleIn(bouncy()), exit = scaleOut()) {
                             Icon(Icons.Rounded.CheckCircle, null, Modifier.size(FilterChipDefaults.IconSize))
@@ -763,7 +769,7 @@ fun InstalledAppsScreen(onBack: () -> Unit, onOpenFolder: (String) -> Unit) {
             }
             when {
                 apps == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator(Modifier.size(64.dp)) }
-                visible.isEmpty() -> EmptyState(Icons.Rounded.Android, if (query.isEmpty()) "Aucune appli" else "Aucun résultat")
+                visible.isEmpty() -> EmptyState(Icons.Rounded.Android, if (query.isEmpty()) stringResource(R.string.apk_no_apps) else stringResource(R.string.search_no_results))
                 else -> LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 120.dp), modifier = Modifier.fillMaxSize()) {
                     itemsIndexed(visible, key = { _, a -> a.packageName }) { i, app ->
                         AppRow(
@@ -803,6 +809,7 @@ private fun AppRow(
             .clip(RoundedCornerShape(corner))
             .background(bg)
             .combinedClickable(interactionSource = interaction, indication = androidx.compose.material3.ripple(), onClick = onClick, onLongClick = onLongClick)
+            .selectionSemantics(selected, onLongClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -827,13 +834,13 @@ private fun AppRow(
                 buildString {
                     app.versionName?.let { append("v").append(it).append(" · ") }
                     append(Format.size(app.totalSize))
-                    if (app.hasSplits) append(" · ").append(Format.count(app.splitSourceDirs.size, "split"))
-                    if (app.isSystem) append(" · système")
+                    if (app.hasSplits) append(" · ").append(pluralStringResource(R.plurals.apk_splits_count, app.splitSourceDirs.size, app.splitSourceDirs.size))
+                    if (app.isSystem) append(" · ").append(stringResource(R.string.apk_system))
                 },
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium,
             )
         }
-        IconButton(onClick = onExport) { Icon(Icons.Rounded.Download, "Extraire l'APK") }
+        IconButton(onClick = onExport) { Icon(Icons.Rounded.Download, stringResource(R.string.apk_extract)) }
     }
 }

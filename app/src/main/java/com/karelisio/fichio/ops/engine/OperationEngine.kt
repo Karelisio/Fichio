@@ -1,5 +1,7 @@
 package com.karelisio.fichio.ops.engine
 
+import com.karelisio.fichio.core.util.Strings
+import com.karelisio.fichio.R
 import com.karelisio.fichio.core.fs.FileBackend
 import com.karelisio.fichio.core.model.FileEntry
 import com.karelisio.fichio.core.util.Format
@@ -99,7 +101,7 @@ class OperationEngine(
         for (p in paths) {
             val b = backendFor(p)
             val e = b.stat(p) ?: if (isSymlink(b, p)) FileEntry(p, PathUtil.name(p), false, 0, 0) else null
-            if (e == null) run.fail(PathUtil.name(p), "introuvable") else items += b to e
+            if (e == null) run.fail(PathUtil.name(p), Strings.get(R.string.ops_err_not_found)) else items += b to e
         }
         var total = 0
         for ((b, e) in items) total += if (b.id == "local") run.scan(b, e, 0).items else 1
@@ -110,7 +112,7 @@ class OperationEngine(
                 else {
                     listener.checkpoint()
                     run.tracker.setName(e.name)
-                    if (!b.deleteRecursively(e.path)) throw IOException("suppression impossible")
+                    if (!b.deleteRecursively(e.path)) throw IOException(Strings.get(R.string.ops_err_delete_failed))
                     run.tracker.itemDone()
                 }
                 run.processed++
@@ -170,15 +172,14 @@ class OperationEngine(
         destinationDir: String?,
     ): EngineResult = withContext(io) {
         val run = Run(listener, move)
-        val verb = if (move) "déplacer" else "copier"
 
         if (destinationDir != null) {
             val db = backendFor(destinationDir)
             val st = db.stat(destinationDir)
             if (st == null) {
-                if (!db.mkdirs(destinationDir)) throw OperationException("Impossible de créer le dossier de destination")
+                if (!db.mkdirs(destinationDir)) throw OperationException(Strings.get(R.string.ops_err_create_dest))
             } else if (!st.isDirectory) {
-                throw OperationException("La destination n'est pas un dossier")
+                throw OperationException(Strings.get(R.string.ops_err_dest_not_folder))
             }
         }
 
@@ -189,10 +190,10 @@ class OperationEngine(
             val srcB = backendFor(from)
             val entry = srcB.stat(from)
             if (entry == null) {
-                run.fail(PathUtil.name(from), "introuvable"); continue
+                run.fail(PathUtil.name(from), Strings.get(R.string.ops_err_not_found)); continue
             }
             if (entry.isDirectory && to != from && PathUtil.isSameOrInside(to, from)) {
-                throw OperationException("Impossible de $verb « ${entry.name} » dans lui-même")
+                throw OperationException(Strings.get(if (move) R.string.ops_err_move_into_self else R.string.ops_err_copy_into_self, entry.name))
             }
             if (to == from && move) {
                 run.processed++; continue // Moving onto itself: nothing to do.
@@ -246,7 +247,7 @@ class OperationEngine(
             val free = key.first.freeSpace(key.second)
             if (needed > free) {
                 throw OperationException(
-                    "Espace insuffisant : ${Format.size(needed)} nécessaires, ${Format.size(free)} disponibles",
+                    Strings.get(R.string.ops_err_no_space, Format.size(needed), Format.size(free)),
                 )
             }
         }
@@ -283,7 +284,7 @@ class OperationEngine(
 
         fun fail(name: String, message: String?) {
             failed++
-            errors += "$name : ${message ?: "erreur inconnue"}"
+            errors += Strings.get(R.string.ops_err_item, name, message ?: Strings.get(R.string.ops_err_unknown))
         }
 
         fun touch(it: Item) {
@@ -323,7 +324,7 @@ class OperationEngine(
         suspend fun transferEntry(srcB: FileBackend, src: FileEntry, dstB: FileBackend, target: String, depth: Int): Outcome {
             listener.checkpoint()
             if (depth > MAX_DEPTH) {
-                fail(src.name, "arborescence trop profonde"); return Outcome.FAILED
+                fail(src.name, Strings.get(R.string.ops_err_too_deep)); return Outcome.FAILED
             }
             val existing = dstB.stat(target)
             val merging = existing != null && src.isDirectory && existing.isDirectory
@@ -369,10 +370,10 @@ class OperationEngine(
             merging: Boolean, replacing: FileEntry?, depth: Int,
         ): Outcome {
             if (replacing != null) {
-                if (!dstB.deleteRecursively(dest)) throw IOException("impossible de remplacer « ${replacing.name} »")
+                if (!dstB.deleteRecursively(dest)) throw IOException(Strings.get(R.string.ops_err_replace, replacing.name))
                 replaced++
             }
-            if (!merging && !dstB.mkdirs(dest)) throw IOException("impossible de créer le dossier")
+            if (!merging && !dstB.mkdirs(dest)) throw IOException(Strings.get(R.string.ops_err_mkdir))
             tracker.setName(src.name)
             val mark = transfers.size
             var complete = true
@@ -384,7 +385,7 @@ class OperationEngine(
             if (!merging) dstB.setLastModified(dest, src.lastModified)
             tracker.itemDone()
             if (move && complete && !srcB.deleteSingle(src.path)) {
-                errors += "${src.name} : le dossier d'origine n'a pas pu être supprimé"
+                errors += Strings.get(R.string.ops_err_source_dir_kept, src.name)
                 complete = false
             }
             if (!merging && complete) {
@@ -401,7 +402,7 @@ class OperationEngine(
             tracker.beginFile(src.name, src.size)
             try {
                 if (replacing != null && replacing.isDirectory) {
-                    if (!dstB.deleteRecursively(dest)) throw IOException("impossible de remplacer « ${replacing.name} »")
+                    if (!dstB.deleteRecursively(dest)) throw IOException(Strings.get(R.string.ops_err_replace, replacing.name))
                     replaced++
                     copyBytes(srcB, src, dstB, dest)
                 } else if (replacing != null) {
@@ -411,7 +412,7 @@ class OperationEngine(
                     dstB.setLastModified(tmp, src.lastModified)
                     if (!swapIn(dstB, dest) { dstB.rename(tmp, dest) }) {
                         dstB.deleteSingle(tmp)
-                        throw IOException("impossible de remplacer « ${replacing.name} »")
+                        throw IOException(Strings.get(R.string.ops_err_replace, replacing.name))
                     }
                     replaced++
                 } else {
@@ -424,7 +425,7 @@ class OperationEngine(
             }
             tracker.endFile()
             if (move && !srcB.deleteSingle(src.path)) {
-                errors += "${src.name} : copié mais l'original n'a pas pu être supprimé"
+                errors += Strings.get(R.string.ops_err_original_kept, src.name)
                 transfers += Transfer(src.path, dest, false)
                 return Outcome.PARTIAL
             }
@@ -475,7 +476,7 @@ class OperationEngine(
                 for (c in b.list(e.path)) deleteTree(b, c, depth + 1)
             }
             tracker.setName(e.name)
-            if (!b.deleteSingle(e.path) && b.exists(e.path)) throw IOException("impossible de supprimer « ${e.name} »")
+            if (!b.deleteSingle(e.path) && b.exists(e.path)) throw IOException(Strings.get(R.string.ops_err_delete_item, e.name))
             tracker.itemDone()
         }
     }
