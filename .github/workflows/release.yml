@@ -98,6 +98,23 @@ jobs:
           disable-animations: true
           script: ./gradlew :app:connectedDebugAndroidTest --stacktrace || (adb logcat -d > app/build/logcat.txt; exit 1)
 
+      - name: Print instrumented test failures
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import glob, html, re
+          for f in glob.glob("app/build/outputs/androidTest-results/connected/**/*.xml", recursive=True):
+              s = open(f, encoding="utf-8", errors="replace").read()
+              for m in re.finditer(r'<testcase name="([^"]+)" classname="([^"]+)"[^>]*>\s*<failure[^>]*>(.*?)</failure>', s, re.S):
+                  print(f"::error::{m.group(2)}.{m.group(1)}")
+                  print(html.unescape(m.group(3))[:3000])
+                  print("-" * 60)
+          PY
+          if [ -f app/build/logcat.txt ]; then
+            echo "--- logcat: crashes ---"
+            grep -E "FATAL EXCEPTION|AndroidRuntime|Caused by|karelisio" app/build/logcat.txt | head -150 || true
+          fi
+
       - name: Upload instrumented test reports
         if: failure()
         uses: actions/upload-artifact@v4
