@@ -3,6 +3,14 @@
 Toutes les évolutions notables de Fichio sont listées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [0.2.2] - 2026-11-18
+
+### Corrigé
+- Plantage en quittant l'aperçu d'un PDF (le document était fermé deux fois, et même fermé juste après son ouverture, ce qui laissait les pages blanches).
+
+### Technique
+- Le fichier de mapping R8 est joint à chaque release pour décoder les rapports de plantage.
+
 ## [0.2.1] - 2026-11-18
 
 ### Corrigé

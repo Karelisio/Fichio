@@ -133,13 +133,21 @@ internal class PdfDocument(file: File) : AutoCloseable {
 
     private fun key(index: Int, width: Int) = (index.toLong() shl 32) or width.toLong()
 
+    /** Idempotent: a second call (or a call after shutdown) is a no-op instead of a crash. */
+    @Synchronized
     override fun close() {
+        if (closed) return
         closed = true
-        // Close on the render thread, after any in-flight render.
-        executor.execute {
+        val release = Runnable {
             runCatching { renderer.close() }
             runCatching { fd.close() }
             cache.evictAll()
+        }
+        // Close on the render thread, after any in-flight render.
+        try {
+            executor.execute(release)
+        } catch (_: java.util.concurrent.RejectedExecutionException) {
+            release.run()
         }
         executor.shutdown()
     }
@@ -151,7 +159,10 @@ internal fun PdfViewer(file: File, entry: FileEntry, modifier: Modifier = Modifi
     val doc by produceState<Result<PdfDocument>?>(null, file) {
         value = withContext(Dispatchers.IO) { runCatching { PdfDocument(file) } }
     }
-    DisposableEffect(doc) { onDispose { doc?.getOrNull()?.close() } }
+    // Capture the value: reading the delegated state inside onDispose would close the *new*
+    // document as soon as it finishes loading.
+    val opened = doc
+    DisposableEffect(opened) { onDispose { opened?.getOrNull()?.close() } }
     when (val d = doc) {
         null -> Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
         else -> d.fold(
